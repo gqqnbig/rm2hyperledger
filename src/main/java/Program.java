@@ -6,10 +6,12 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.Locale;
 import java.nio.file.*;
 
 public class Program {
 	public static void main(String[] args) throws IOException, URISyntaxException {
+		Locale.setDefault(new Locale("en", "US"));
 		String targetFolder = "D:\\rm2pt\\cocome-hyperledger";
 
 		URI path = Program.class.getProtectionDomain().getCodeSource().getLocation().toURI();
