@@ -11,10 +11,12 @@ public class AddObjectConverter extends JavaParserBaseVisitor<Object> {
 	final static Pattern methodNamePattern = Pattern.compile("add(\\w+)Object");
 
 	final TokenStreamRewriter rewriter;
+	final String lineEnding;
 	boolean hasLoadList = false;
 
-	public AddObjectConverter(TokenStreamRewriter rewriter) {
+	public AddObjectConverter(TokenStreamRewriter rewriter, String lineEnding) {
 		this.rewriter = rewriter;
+		this.lineEnding = lineEnding;
 	}
 
 	@Override
@@ -45,7 +47,7 @@ public class AddObjectConverter extends JavaParserBaseVisitor<Object> {
 				FormatHelper.increaseIndent(lines, 1);
 				lines.add(0, "{");
 
-				rewriter.replace(ctx.methodBody().start, ctx.methodBody().stop, String.join("\n", lines));
+				rewriter.replace(ctx.methodBody().start, ctx.methodBody().stop, String.join(lineEnding, lines));
 
 			}
 		}
@@ -85,7 +87,7 @@ public class AddObjectConverter extends JavaParserBaseVisitor<Object> {
 
 
 		if (hasLoadList == false) {
-			String line = String.join("\n", loadList) + "\n";
+			String line = String.join(lineEnding, loadList) + lineEnding;
 			rewriter.insertBefore(ctx.stop, line);
 
 			System.out.println("loadList method added");
@@ -99,9 +101,9 @@ public class AddObjectConverter extends JavaParserBaseVisitor<Object> {
 
 		if (typeStartToken != null) {
 			if (imports.size() > 0) {
-				rewriter.insertBefore(typeStartToken, "\n");
+				rewriter.insertBefore(typeStartToken, lineEnding);
 				for (String name : imports)
-					rewriter.insertBefore(typeStartToken, "import " + name + ";\n");
+					rewriter.insertBefore(typeStartToken, "import " + name + ";"+lineEnding);
 			}
 		}
 

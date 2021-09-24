@@ -1,12 +1,30 @@
+import org.antlr.v4.runtime.Token;
+import org.antlr.v4.runtime.TokenStreamRewriter;
+
 import java.util.ArrayList;
 import java.util.logging.Logger;
 
-public class ContractCollector extends JavaParserBaseVisitor<Object> {
-	static Logger logger = Logger.getLogger("ContractCollector");
+public class ServiceInterfaceConverter extends ImportsCollector<Object> {
+	static Logger logger = Logger.getLogger(ServiceInterfaceConverter.class.getSimpleName());
 
 
 	private String interfaceName;
-	private ArrayList<String> contractMethods = new ArrayList<>();
+	private final ArrayList<String> contractMethods = new ArrayList<>();
+//	private final TokenStreamRewriter rewriter;
+//	private boolean contextClassNeeded = false;
+
+	public ServiceInterfaceConverter(TokenStreamRewriter rewriter) {
+		super(rewriter);
+	}
+
+	public String getInterfaceName() {
+		return interfaceName;
+	}
+
+	public ArrayList<String> getContractMethods() {
+		return contractMethods;
+	}
+
 
 	@Override
 	public Object visitInterfaceDeclaration(JavaParser.InterfaceDeclarationContext ctx) {
@@ -25,17 +43,13 @@ public class ContractCollector extends JavaParserBaseVisitor<Object> {
 			logger.finer("Skip " + methodName);
 		} else if (methodName.startsWith("set") && ctx.formalParameters().children.size() == 3 && returnType.VOID() != null) {
 			logger.finer("Skip " + methodName);
-		} else
+		} else {
 			contractMethods.add(methodName);
-
+			if (ParameterChecker.hasParameter(ctx.formalParameters(), "Context", "ctx") == false) {
+				rewriter.insertAfter(ctx.formalParameters().start, "final Context ctx, ");
+				newImports.add("org.hyperledger.fabric.contract.Context");
+			}
+		}
 		return null;
-	}
-
-	public String getInterfaceName() {
-		return interfaceName;
-	}
-
-	public ArrayList<String> getContractMethods() {
-		return contractMethods;
 	}
 }
