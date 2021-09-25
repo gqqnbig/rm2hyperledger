@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.*;
+import java.nio.file.attribute.PosixFilePermission;
 import java.util.*;
 import java.util.logging.Handler;
 import java.util.logging.Level;
@@ -136,6 +137,27 @@ public class Program {
 
 		copyDirectory(Paths.get(resourcesPath).toString(), targetFolder);
 		Files.move(Paths.get(targetFolder, "gitignore"), Paths.get(targetFolder, ".gitignore"), StandardCopyOption.REPLACE_EXISTING);
+
+		try {
+			Path gradlewFile = Paths.get(targetFolder, "gradlew");
+			var permissions = Files.getPosixFilePermissions(gradlewFile);
+			permissions.add(PosixFilePermission.OWNER_EXECUTE);
+			permissions.add(PosixFilePermission.GROUP_EXECUTE);
+			permissions.add(PosixFilePermission.OTHERS_EXECUTE);
+			Files.setPosixFilePermissions(gradlewFile, permissions);
+		}
+		catch (UnsupportedOperationException e) {
+			//On Windows
+			try {
+				File f = new File(targetFolder, ".git");
+				if (f.isDirectory()) {
+					Runtime.getRuntime().exec("git add --chmod=+x gradlew", null, new File(targetFolder)).waitFor();
+				}
+			}
+			catch (Exception e1) {
+				logger.warning("Unable to set execution bit for file ~/gradlew. "+ e1.getMessage());
+			}
+		}
 	}
 
 	private static void copyDirectory(String sourceDirectoryLocation, String destinationDirectoryLocation) throws IOException {
