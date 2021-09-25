@@ -29,7 +29,7 @@ public class ServiceImplementationConverter extends ImportsCollector<Transaction
 
 		var formalParameters = ctx.formalParameters();
 		if (ParameterChecker.hasParameter(ctx.formalParameters(), "Context", "ctx") == false) {
-			rewriter.insertAfter(formalParameters.start, "final Context ctx, ");
+			rewriter.insertAfter(formalParameters.start, "final Context ctx" + (ctx.formalParameters().children.size() == 2 ? "" : ", "));
 			newImports.add("org.hyperledger.fabric.contract.Context");
 		}
 

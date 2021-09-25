@@ -46,7 +46,7 @@ public class ServiceInterfaceConverter extends ImportsCollector<Object> {
 		} else {
 			contractMethods.add(methodName);
 			if (ParameterChecker.hasParameter(ctx.formalParameters(), "Context", "ctx") == false) {
-				rewriter.insertAfter(ctx.formalParameters().start, "final Context ctx, ");
+				rewriter.insertAfter(ctx.formalParameters().start, "final Context ctx" + (ctx.formalParameters().children.size() == 2 ? "" : ", "));
 				newImports.add("org.hyperledger.fabric.contract.Context");
 			}
 		}
