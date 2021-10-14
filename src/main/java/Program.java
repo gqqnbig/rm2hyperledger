@@ -107,6 +107,12 @@ public class Program {
 		return rewriter.getText();
 	}
 
+	/**
+	 * @param interfaceFile
+	 * @param methodsToRewrite
+	 * @return null if the file is not rewritable.
+	 * @throws IOException
+	 */
 	private static String rewriteInterface(File interfaceFile, ArrayList<String> methodsToRewrite) throws IOException {
 		CommonTokenStream tokens = new CommonTokenStream(new JavaLexer(CharStreams.fromFileName(interfaceFile.getPath())));
 		TokenStreamRewriter rewriter = new TokenStreamRewriter(tokens);
