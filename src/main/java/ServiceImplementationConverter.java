@@ -15,6 +15,7 @@ public class ServiceImplementationConverter extends ImportsCollector<Transaction
 		var text = ctx.getText();
 		if (text.contains("ChaincodeStubstub=ctx.getStub();") == false && text.contains("EntityManager.stub=stub;") == false) {
 			rewriter.insertAfter(ctx.start, "\n\t\tChaincodeStub stub = ctx.getStub();\n\t\tEntityManager.stub = stub;");
+			newImports.add("org.hyperledger.fabric.shim.*");
 		}
 
 		return TransactionIntent.SUBMIT;
@@ -30,7 +31,7 @@ public class ServiceImplementationConverter extends ImportsCollector<Transaction
 		var formalParameters = ctx.formalParameters();
 		if (ParameterChecker.hasParameter(ctx.formalParameters(), "Context", "ctx") == false) {
 			rewriter.insertAfter(formalParameters.start, "final Context ctx" + (ctx.formalParameters().children.size() == 2 ? "" : ", "));
-			newImports.add("org.hyperledger.fabric.contract.Context");
+			newImports.add("org.hyperledger.fabric.contract.*");
 		}
 
 
