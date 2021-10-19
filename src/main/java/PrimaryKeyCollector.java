@@ -34,7 +34,7 @@ public class PrimaryKeyCollector {
 			if (i == null)
 				map.put(type, identifier);
 			else if (identifier.equals(i) == false)
-				logger.warning(String.format("%1$s has primary key %2$s. Another primary key %3$s will be ignored.", type, identifier, i));
+				logger.warning(String.format("%1$s has primary key %2$s. Another primary key %3$s will be ignored.", type, i, identifier));
 		}
 
 		Pattern anyPattern = Pattern.compile("\\.allInstance\\(\\)->any\\(([_\\w\\d]+):([_\\w\\d]+)\\s*\\|\\s*\\1.([_\\w\\d]+)\\s*=");
@@ -47,7 +47,7 @@ public class PrimaryKeyCollector {
 			if (i == null)
 				map.put(type, identifier);
 			else if (identifier.equals(i) == false)
-				logger.warning(String.format("%1$s has primary key %2$s. Another primary key %3$s will be ignored.", type, identifier, i));
+				logger.warning(String.format("%1$s has primary key %2$s. Another primary key %3$s will be ignored.", type, i, identifier));
 		}
 
 		return map;
