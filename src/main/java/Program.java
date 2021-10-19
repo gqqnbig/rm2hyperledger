@@ -69,6 +69,8 @@ public class Program {
 
 
 		convertContracts(targetFolder);
+
+		removeRefreshMethod(targetFolder);
 	}
 
 	private static void convertContracts(String targetFolder) throws IOException {
@@ -185,4 +187,31 @@ public class Program {
 				});
 	}
 
+
+	private static void removeRefreshMethod(String targetFolder) throws IOException {
+
+		Path servicesImplFolder = Path.of(targetFolder, "src\\main\\java\\services\\impl");
+		assert Files.exists(servicesImplFolder);
+
+		Files.list(servicesImplFolder).forEach(impl -> {
+			try {
+				CommonTokenStream tokens;
+				tokens = new CommonTokenStream(new JavaLexer(CharStreams.fromPath(impl)));
+
+
+				JavaParser parser = new JavaParser(tokens);
+				TokenStreamRewriter rewriter = new TokenStreamRewriter(tokens);
+				var refreshRemover = new RefreshRemover(rewriter);
+
+				refreshRemover.visit(parser.compilationUnit());
+				// System.out.print(rewriter.getText());
+				try (PrintWriter out = new PrintWriter(impl.toFile())) {
+					out.print(rewriter.getText());
+				}
+			}
+			catch (IOException exception) {
+				logger.severe(exception.getMessage());
+			}
+		});
+	}
 }
