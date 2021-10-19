@@ -2,7 +2,6 @@ import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.TokenStreamRewriter;
 
-import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -75,35 +74,48 @@ public class Program {
 
 	private static void convertContracts(String targetFolder) throws IOException {
 
-		File servicesImplFolder = new File(targetFolder, "src\\main\\java\\services\\");
-		HashMap<String, ArrayList<String>> contracts = new HashMap<>();
-		for (File interfaceFile : servicesImplFolder.listFiles()) {
-			if (interfaceFile.isDirectory())
-				continue;
+		Path servicesImplFolder = Path.of(targetFolder, "src\\main\\java\\services\\");
+		assert Files.exists(servicesImplFolder);
+		Files.list(servicesImplFolder).forEach(interfaceFile -> {
+			if (Files.isDirectory(interfaceFile))
+				return;
 
 			ArrayList<String> methodsToRewrite = new ArrayList<>();
-			String interfaceCode = rewriteInterface(interfaceFile, methodsToRewrite);
-			if (interfaceCode == null)
-				continue;
+			try {
+				String interfaceCode = null;
+				interfaceCode = rewriteInterface(interfaceFile, methodsToRewrite);
 
-			File implementationFile = new File(new File(interfaceFile.getParent(), "impl"), FileHelper.getFileNameWithoutExtension(interfaceFile.getName()) + "Impl.java");
-			String implementationCode = rewriteImplementation(implementationFile, methodsToRewrite);
+				if (interfaceCode == null)
+					return;
 
-			System.out.println(interfaceFile.toString() + ":");
-			System.out.println(interfaceCode);
-			System.out.println();
-			System.out.println(implementationFile.toString() + ":");
-			System.out.println(implementationCode);
-			break;
-		}
+				var implementationFile = Path.of(servicesImplFolder.toString(), "impl", FileHelper.getFileNameWithoutExtension(interfaceFile.getFileName().toString()) + "Impl.java");
+				String implementationCode = rewriteImplementation(implementationFile, methodsToRewrite);
+//				System.out.println(implementationCode);
+				try (PrintWriter out = new PrintWriter(interfaceFile.toString())) {
+					out.print(interfaceCode);
+				}
+				try (PrintWriter out = new PrintWriter(implementationFile.toString())) {
+					out.print(implementationCode);
+				}
+			}
+			catch (IOException exception) {
+				logger.severe(exception.getMessage());
+			}
+//			System.out.println(interfaceFile.toString() + ":");
+//			System.out.println(interfaceCode);
+//			System.out.println();
+//			System.out.println(implementationFile.toString() + ":");
+//			System.out.println(implementationCode);
+//			break;
+		});
 	}
 
-	private static String rewriteImplementation(File implementationFile, ArrayList<String> methodsToRewrite) throws IOException {
-		if ("\n".equals(FileHelper.getFileLineEnding(implementationFile.toPath())) == false)
-			logger.warning(String.format("Unix line ending is required for %s. The file ends up with mixed line ending afterwards.", implementationFile.getName()));
+	private static String rewriteImplementation(Path implementationFile, ArrayList<String> methodsToRewrite) throws IOException {
+		if ("\n".equals(FileHelper.getFileLineEnding(implementationFile)) == false)
+			logger.warning(String.format("Unix line ending is required for %s. The file ends up with mixed line ending afterwards.", implementationFile.getFileName()));
 
 
-		CommonTokenStream tokens = new CommonTokenStream(new JavaLexer(CharStreams.fromFileName(implementationFile.getPath())));
+		CommonTokenStream tokens = new CommonTokenStream(new JavaLexer(CharStreams.fromPath(implementationFile)));
 		TokenStreamRewriter rewriter = new TokenStreamRewriter(tokens);
 
 		JavaParser parser = new JavaParser(tokens);
@@ -119,8 +131,8 @@ public class Program {
 	 * @return null if the file is not rewritable.
 	 * @throws IOException
 	 */
-	private static String rewriteInterface(File interfaceFile, ArrayList<String> methodsToRewrite) throws IOException {
-		CommonTokenStream tokens = new CommonTokenStream(new JavaLexer(CharStreams.fromFileName(interfaceFile.getPath())));
+	private static String rewriteInterface(Path interfaceFile, ArrayList<String> methodsToRewrite) throws IOException {
+		CommonTokenStream tokens = new CommonTokenStream(new JavaLexer(CharStreams.fromPath(interfaceFile)));
 		TokenStreamRewriter rewriter = new TokenStreamRewriter(tokens);
 
 		JavaParser parser = new JavaParser(tokens);
@@ -130,8 +142,8 @@ public class Program {
 		if (contractCollector.getContractMethods().size() == 0)
 			return null;
 
-		if (interfaceFile.getName().equals(contractCollector.getInterfaceName() + ".java") == false)
-			ServiceInterfaceConverter.logger.warning(String.format("Interface %s found in file %s.", contractCollector.getInterfaceName(), interfaceFile.getName()));
+		if (interfaceFile.getFileName().equals(contractCollector.getInterfaceName() + ".java") == false)
+			ServiceInterfaceConverter.logger.warning(String.format("Interface %s found in file %s.", contractCollector.getInterfaceName(), interfaceFile.getFileName()));
 
 		if (ServiceInterfaceConverter.logger.isLoggable(Level.FINE)) {
 			String msg = contractCollector.getInterfaceName() + " has contracts: ";
@@ -161,13 +173,12 @@ public class Program {
 		catch (UnsupportedOperationException e) {
 			//On Windows
 			try {
-				File f = new File(targetFolder, ".git");
-				if (f.isDirectory()) {
-					Runtime.getRuntime().exec("git add --chmod=+x gradlew", null, new File(targetFolder)).waitFor();
+				if (Files.isDirectory(Path.of(targetFolder, ".git"))) {
+					Runtime.getRuntime().exec("git add --chmod=+x gradlew", null, new java.io.File(targetFolder)).waitFor();
 				}
 			}
 			catch (Exception e1) {
-				logger.warning("Unable to set execution bit for file ~/gradlew. "+ e1.getMessage());
+				logger.warning("Unable to set execution bit for file ~/gradlew. " + e1.getMessage());
 			}
 		}
 	}
