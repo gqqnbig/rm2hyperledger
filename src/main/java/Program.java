@@ -97,6 +97,10 @@ public class Program {
 	}
 
 	private static String rewriteImplementation(File implementationFile, ArrayList<String> methodsToRewrite) throws IOException {
+		if ("\n".equals(FileHelper.getFileLineEnding(implementationFile.toPath())) == false)
+			logger.warning(String.format("Unix line ending is required for %s. The file ends up with mixed line ending afterwards.", implementationFile.getName()));
+
+
 		CommonTokenStream tokens = new CommonTokenStream(new JavaLexer(CharStreams.fromFileName(implementationFile.getPath())));
 		TokenStreamRewriter rewriter = new TokenStreamRewriter(tokens);
 
@@ -181,15 +185,4 @@ public class Program {
 				});
 	}
 
-	private static String getFileLineEnding(Path fileName) throws IOException {
-		String content = Files.readString(fileName);
-		if (content.contains("\r\n"))
-			return "\r\n";
-		else if (content.contains("\n"))
-			return "\n";
-		else if (content.contains("\r"))
-			return "\r";
-		else
-			return System.getProperty("line.separator");
-	}
 }
