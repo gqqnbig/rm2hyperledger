@@ -3,7 +3,7 @@ plugins {
     id 'antlr'
 }
 
-group 'org.example'
+group 'gqqnbig'
 version '1.0-SNAPSHOT'
 
 repositories {
