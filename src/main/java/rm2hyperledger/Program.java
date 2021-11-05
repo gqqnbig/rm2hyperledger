@@ -10,7 +10,10 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.*;
 import java.nio.file.attribute.PosixFilePermission;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Locale;
 import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -41,7 +44,6 @@ public class Program {
 		String targetFolder = "D:\\rm2pt\\cocome-hyperledger";
 		String reModelFile = "D:\\rm2pt\\RM2PT-win32.win32.x86_64-1.2.1\\workspace\\CoCoMe\\RequirementsModel\\cocome.remodel";
 
-		convertEntities(targetFolder);
 
 //		convertSystemFields(reModelFile, targetFolder);
 //		new SystemFieldsCollector(reModelFile).collect();
@@ -81,6 +83,9 @@ public class Program {
 		convertContracts(targetFolder);
 
 		removeRefreshMethod(targetFolder);
+
+
+		convertEntities(targetFolder);
 	}
 
 	private static void convertContracts(String targetFolder) throws IOException {
@@ -277,13 +282,13 @@ public class Program {
 
 	private static void convertEntities(String targetFolder) throws IOException {
 
-		Path servicesImplFolder = Path.of(targetFolder, "src\\main\\java\\entities");
-		assert Files.exists(servicesImplFolder);
+		Path folder = Path.of(targetFolder, "src\\main\\java\\entities");
+		assert Files.exists(folder);
 
-		Files.list(servicesImplFolder).forEach(impl -> {
+		Files.list(folder).forEach(file -> {
 			try {
 				CommonTokenStream tokens;
-				tokens = new CommonTokenStream(new JavaLexer(CharStreams.fromPath(impl)));
+				tokens = new CommonTokenStream(new JavaLexer(CharStreams.fromPath(file)));
 
 
 				JavaParser parser = new JavaParser(tokens);
@@ -291,9 +296,9 @@ public class Program {
 				var converter = new EntityConverter(rewriter);
 
 				converter.visit(parser.compilationUnit());
-//				try (PrintWriter out = new PrintWriter(impl.toFile())) {
-//					out.print(rewriter.getText());
-//				}
+				try (PrintWriter out = new PrintWriter(file.toFile())) {
+					out.print(rewriter.getText());
+				}
 			}
 			catch (IOException exception) {
 				logger.severe(exception.getMessage());
