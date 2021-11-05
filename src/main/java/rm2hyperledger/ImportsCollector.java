@@ -38,6 +38,7 @@ public abstract class ImportsCollector<T> extends JavaParserBaseVisitor<T> {
 		newImports.toArray(arr);
 		for (int i = arr.length - 1; i >= 0; i--) {
 			String newImport = arr[i];
+			assert newImport.contains(" ") == false: String.format("\"import %s\" is invalid.", newImport);
 			if (newImport.endsWith(".*")) {
 				if (imported.stream().anyMatch(p -> p.getKey().equals(newImport)) == false)
 					rewriter.insertAfter(importPoint, "\nimport " + newImport + ";");
