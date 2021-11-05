@@ -1,12 +1,11 @@
+package rm2hyperledger;
+
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
 
 import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.HashMap;
 import java.util.HashSet;
-import java.util.regex.Pattern;
 
 /**
  * Each REModel requires a service whose name is the file name appended with the word "System".

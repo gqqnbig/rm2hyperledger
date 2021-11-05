@@ -1,3 +1,9 @@
+package rm2hyperledger.checkers;
+
+
+import rm2hyperledger.JavaParser;
+import rm2hyperledger.JavaParserBaseVisitor;
+
 public class ParameterChecker extends JavaParserBaseVisitor<Boolean> {
 	String type;
 	String name;

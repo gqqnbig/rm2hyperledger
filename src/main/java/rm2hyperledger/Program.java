@@ -1,8 +1,11 @@
+package rm2hyperledger;
+
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.TokenStreamRewriter;
 
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.*;
@@ -15,33 +18,20 @@ import java.util.logging.Logger;
 public class Program {
 	private static final Logger logger = Logger.getLogger("");
 
-//	static Logger logger = Logger.getLogger("ContractCollector");
 
 	public static void main(String[] args) throws IOException, URISyntaxException {
-//		System.setProperty("user.language", "en");
 		Locale.setDefault(new Locale("en", "US"));
-//		java.util.Locale.setDefault(Locale.Category.DISPLAY, Locale.US);
-//		java.util.Locale.setDefault(Locale.Category.FORMAT, Locale.US);
-
 		List<String> argsList = Arrays.asList(args);
 		try {
 			int i = argsList.indexOf("--log");
 			if (i > -1 && i + 1 < argsList.size()) {
 				Handler defaultConsoleHandler = logger.getHandlers()[0];
-//		LOGGER.info("Default log level of PARENT_LOGGER: " +PARENT_LOGGER.getLevel().toString());
-//		LOGGER.info("Default Console Handler Log Level: "+defaultConsoleHandler.getLevel().toString());
 
 				Level logLevel = Level.parse(argsList.get(i + 1).toUpperCase());
 
 				defaultConsoleHandler.setLevel(logLevel);
 				logger.setLevel(logLevel);
-//				logger.log(Level.FINE, "here is finest log");
-//				logger.log(Level.SEVERE, "here is severe log");
-
-//				rootLogger.getHandlers()[0].setLevel(Level.ALL);
 			}
-//
-
 		}
 		catch (IllegalArgumentException ignored) {
 
@@ -49,22 +39,43 @@ public class Program {
 
 
 		String targetFolder = "D:\\rm2pt\\cocome-hyperledger";
+		String reModelFile = "D:\\rm2pt\\RM2PT-win32.win32.x86_64-1.2.1\\workspace\\CoCoMe\\RequirementsModel\\cocome.remodel";
 
-//		copySkeleton(targetFolder);
-//
-//
-//		Path EntityManagerFileName = Paths.get(targetFolder, "src\\main\\java\\entities\\EntityManager.java");
-//		CommonTokenStream tokens = new CommonTokenStream(new JavaLexer(CharStreams.fromPath(EntityManagerFileName)));
-//
-//		JavaParser parser = new JavaParser(tokens);
-//		TokenStreamRewriter rewriter = new TokenStreamRewriter(tokens);
-//
-//		AddObjectConverter converter = new AddObjectConverter(rewriter, getFileLineEnding(EntityManagerFileName));
-//		converter.visit(parser.compilationUnit());
-////		System.out.print(rewriter.getText());
-//		try (PrintWriter out = new PrintWriter(EntityManagerFileName.toFile())) {
-//			out.print(rewriter.getText());
+		convertEntities(targetFolder);
+
+//		convertSystemFields(reModelFile, targetFolder);
+//		new SystemFieldsCollector(reModelFile).collect();
+//		var primaryKeyCollector = new PrimaryKeyCollector();
+//		var map = primaryKeyCollector.collect();
+//		for (var pair : map.entrySet()) {
+//			System.out.printf("%s -> %s\n", pair.getKey(), pair.getValue());
 //		}
+//
+//		if (true)
+//			throw new UnsupportedOperationException();
+
+//		CommonTokenStream tokens = new CommonTokenStream(new JavaLexer(CharStreams.fromFileName("D:\\rm2pt\\cocome-hyperledger\\src\\main\\java\\services\\impl\\CoCoMESystemImpl.java")));
+//		TokenStreamRewriter rewriter = new TokenStreamRewriter(tokens);
+//		JavaParser parser = new JavaParser(tokens);
+//		new EntityManagerCallSiteConverter(rewriter).visit(parser.compilationUnit());
+//		System.out.println(rewriter.getText());
+
+
+		copySkeleton(targetFolder);
+
+
+		Path EntityManagerFileName = Paths.get(targetFolder, "src\\main\\java\\entities\\EntityManager.java");
+		CommonTokenStream tokens = new CommonTokenStream(new JavaLexer(CharStreams.fromPath(EntityManagerFileName)));
+
+		JavaParser parser = new JavaParser(tokens);
+		TokenStreamRewriter rewriter = new TokenStreamRewriter(tokens);
+
+		AddObjectConverter converter = new AddObjectConverter(rewriter, FileHelper.getFileLineEnding(EntityManagerFileName));
+		converter.visit(parser.compilationUnit());
+		try (PrintWriter out = new PrintWriter(EntityManagerFileName.toFile())) {
+			out.print(rewriter.getText());
+		}
+		convertEntityManagerCallSite(targetFolder);
 
 
 		convertContracts(targetFolder);
@@ -199,6 +210,44 @@ public class Program {
 	}
 
 
+	private static void convertSystemFields(String reModelPath, String targetFolder) throws IOException {
+		var fileName = FileHelper.getFileNameWithoutExtension(Path.of(reModelPath).getFileName().toString());
+
+		System.out.println(fileName);
+
+		var systemFile = Path.of(targetFolder, "src\\main\\java\\services\\", fileName + "System.java");
+
+		var fields = SystemFieldsCollector.collect(systemFile);
+
+		System.out.println("System fields: " + String.join(", ", fields));
+	}
+
+	private static void convertEntityManagerCallSite(String targetFolder) throws IOException {
+		Path servicesImplFolder = Path.of(targetFolder, "src\\main\\java\\services\\impl");
+		assert Files.exists(servicesImplFolder);
+
+		Files.list(servicesImplFolder).forEach(impl -> {
+			try {
+				CommonTokenStream tokens;
+				tokens = new CommonTokenStream(new JavaLexer(CharStreams.fromPath(impl)));
+
+
+				JavaParser parser = new JavaParser(tokens);
+				TokenStreamRewriter rewriter = new TokenStreamRewriter(tokens);
+				var converter = new EntityManagerCallSiteConverter(rewriter);
+
+				converter.visit(parser.compilationUnit());
+				try (PrintWriter out = new PrintWriter(impl.toFile())) {
+					out.print(rewriter.getText());
+				}
+			}
+			catch (IOException exception) {
+				logger.severe(exception.getMessage());
+			}
+		});
+	}
+
+
 	private static void removeRefreshMethod(String targetFolder) throws IOException {
 
 		Path servicesImplFolder = Path.of(targetFolder, "src\\main\\java\\services\\impl");
@@ -219,6 +268,32 @@ public class Program {
 				try (PrintWriter out = new PrintWriter(impl.toFile())) {
 					out.print(rewriter.getText());
 				}
+			}
+			catch (IOException exception) {
+				logger.severe(exception.getMessage());
+			}
+		});
+	}
+
+	private static void convertEntities(String targetFolder) throws IOException {
+
+		Path servicesImplFolder = Path.of(targetFolder, "src\\main\\java\\entities");
+		assert Files.exists(servicesImplFolder);
+
+		Files.list(servicesImplFolder).forEach(impl -> {
+			try {
+				CommonTokenStream tokens;
+				tokens = new CommonTokenStream(new JavaLexer(CharStreams.fromPath(impl)));
+
+
+				JavaParser parser = new JavaParser(tokens);
+				TokenStreamRewriter rewriter = new TokenStreamRewriter(tokens);
+				var converter = new EntityConverter(rewriter);
+
+				converter.visit(parser.compilationUnit());
+//				try (PrintWriter out = new PrintWriter(impl.toFile())) {
+//					out.print(rewriter.getText());
+//				}
 			}
 			catch (IOException exception) {
 				logger.severe(exception.getMessage());

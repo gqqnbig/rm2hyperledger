@@ -1,3 +1,5 @@
+package rm2hyperledger;
+
 import org.antlr.v4.runtime.Token;
 import org.antlr.v4.runtime.TokenStreamRewriter;
 
@@ -30,7 +32,7 @@ public class AddObjectConverter extends JavaParserBaseVisitor<Object> {
 			String type = ctx.formalParameters().children.get(1).getChild(0).getChild(0).getText();
 
 			if (m.group(1).equals(type)) {
-				System.out.println(type);
+//				System.out.println(type);
 
 
 				// @formatter:off

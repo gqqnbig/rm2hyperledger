@@ -1,4 +1,6 @@
-import org.antlr.v4.runtime.Token;
+package rm2hyperledger;
+
+import rm2hyperledger.checkers.ParameterChecker;
 import org.antlr.v4.runtime.TokenStreamRewriter;
 
 import java.util.ArrayList;

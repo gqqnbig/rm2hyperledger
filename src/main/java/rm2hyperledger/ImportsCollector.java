@@ -1,3 +1,5 @@
+package rm2hyperledger;
+
 import org.antlr.v4.runtime.Token;
 import org.antlr.v4.runtime.TokenStreamRewriter;
 

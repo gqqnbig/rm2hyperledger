@@ -2,6 +2,9 @@ import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import rm2hyperledger.AntlrHelper;
+import rm2hyperledger.JavaLexer;
+import rm2hyperledger.JavaParser;
 
 
 public class AntlrHelperTest {

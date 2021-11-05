@@ -26,7 +26,8 @@ dependencies {
 
 generateGrammarSource {
 //    maxHeapSize = "64m"
-    arguments += ["-visitor"]
+    arguments += ["-visitor", '-package', 'rm2hyperledger']
+    outputDirectory = file("build/generated-src/antlr/main/rm2hyperledger")
 }
 
 test {
