@@ -209,7 +209,7 @@ public class Program {
 					catch (DirectoryNotEmptyException ignored) {
 					}
 					catch (IOException e) {
-						e.printStackTrace();
+						logger.warning(String.format("IOException for %s: %s", destination, e.getMessage()));
 					}
 				});
 	}
