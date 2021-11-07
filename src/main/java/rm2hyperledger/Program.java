@@ -56,8 +56,6 @@ public class Program {
 //		if (true)
 //			throw new UnsupportedOperationException();
 
-		copySkeleton(targetFolder);
-
 
 		Path EntityManagerFileName = Paths.get(targetFolder, "src\\main\\java\\entities\\EntityManager.java");
 		CommonTokenStream tokens = new CommonTokenStream(new JavaLexer(CharStreams.fromPath(EntityManagerFileName)));
@@ -79,6 +77,8 @@ public class Program {
 
 
 		convertEntities(targetFolder);
+
+		copySkeleton(targetFolder);
 	}
 
 	private static void convertContracts(String targetFolder) throws IOException {
