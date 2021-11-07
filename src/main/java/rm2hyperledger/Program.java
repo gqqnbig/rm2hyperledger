@@ -287,13 +287,15 @@ public class Program {
 
 		Files.list(folder).forEach(file -> {
 			try {
-				CommonTokenStream tokens;
-				tokens = new CommonTokenStream(new JavaLexer(CharStreams.fromPath(file)));
+				if (file.toString().endsWith("EntityManager.java"))
+					return;
+
+				CommonTokenStream tokens = new CommonTokenStream(new JavaLexer(CharStreams.fromPath(file)));
 
 
 				JavaParser parser = new JavaParser(tokens);
 				TokenStreamRewriter rewriter = new TokenStreamRewriter(tokens);
-				var converter = new EntityConverter(rewriter);
+				var converter = new EntityConverter(tokens, rewriter);
 
 				converter.visit(parser.compilationUnit());
 				try (PrintWriter out = new PrintWriter(file.toFile())) {
