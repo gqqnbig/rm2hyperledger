@@ -56,13 +56,6 @@ public class Program {
 //		if (true)
 //			throw new UnsupportedOperationException();
 
-//		CommonTokenStream tokens = new CommonTokenStream(new JavaLexer(CharStreams.fromFileName("D:\\rm2pt\\cocome-hyperledger\\src\\main\\java\\services\\impl\\CoCoMESystemImpl.java")));
-//		TokenStreamRewriter rewriter = new TokenStreamRewriter(tokens);
-//		JavaParser parser = new JavaParser(tokens);
-//		new EntityManagerCallSiteConverter(rewriter).visit(parser.compilationUnit());
-//		System.out.println(rewriter.getText());
-
-
 		copySkeleton(targetFolder);
 
 
