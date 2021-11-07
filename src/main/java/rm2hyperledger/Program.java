@@ -158,7 +158,7 @@ public class Program {
 		if (contractCollector.getContractMethods().size() == 0)
 			return null;
 
-		if (interfaceFile.getFileName().equals(contractCollector.getInterfaceName() + ".java") == false)
+		if (interfaceFile.getFileName().toString().equals(contractCollector.getInterfaceName() + ".java") == false)
 			ServiceInterfaceConverter.logger.warning(String.format("Interface %s found in file %s.", contractCollector.getInterfaceName(), interfaceFile.getFileName()));
 
 		if (ServiceInterfaceConverter.logger.isLoggable(Level.FINE)) {
