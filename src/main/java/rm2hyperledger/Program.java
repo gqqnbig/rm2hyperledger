@@ -57,17 +57,7 @@ public class Program {
 //			throw new UnsupportedOperationException();
 
 
-		Path EntityManagerFileName = Paths.get(targetFolder, "src\\main\\java\\entities\\EntityManager.java");
-		CommonTokenStream tokens = new CommonTokenStream(new JavaLexer(CharStreams.fromPath(EntityManagerFileName)));
-
-		JavaParser parser = new JavaParser(tokens);
-		TokenStreamRewriter rewriter = new TokenStreamRewriter(tokens);
-
-		AddObjectConverter converter = new AddObjectConverter(rewriter, FileHelper.getFileLineEnding(EntityManagerFileName));
-		converter.visit(parser.compilationUnit());
-		try (PrintWriter out = new PrintWriter(EntityManagerFileName.toFile())) {
-			out.print(rewriter.getText());
-		}
+		convertEntityManager(targetFolder);
 		convertEntityManagerCallSite(targetFolder);
 
 
@@ -79,6 +69,20 @@ public class Program {
 		convertEntities(targetFolder);
 
 		copySkeleton(targetFolder);
+	}
+
+	private static void convertEntityManager(String targetFolder) throws IOException {
+		Path EntityManagerFileName = Paths.get(targetFolder, "src\\main\\java\\entities\\EntityManager.java");
+		CommonTokenStream tokens = new CommonTokenStream(new JavaLexer(CharStreams.fromPath(EntityManagerFileName)));
+
+		JavaParser parser = new JavaParser(tokens);
+		TokenStreamRewriter rewriter = new TokenStreamRewriter(tokens);
+
+		AddObjectConverter converter = new AddObjectConverter(rewriter, FileHelper.getFileLineEnding(EntityManagerFileName));
+		converter.visit(parser.compilationUnit());
+		try (PrintWriter out = new PrintWriter(EntityManagerFileName.toFile())) {
+			out.print(rewriter.getText());
+		}
 	}
 
 	private static void convertContracts(String targetFolder) throws IOException {
