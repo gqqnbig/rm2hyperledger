@@ -10,7 +10,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class AddObjectConverter extends JavaParserBaseVisitor<Object> {
-	final static Pattern methodNamePattern = Pattern.compile("add(\\w+)Object");
+	final static Pattern addObjectMethodName = Pattern.compile("add(\\w+)Object");
 
 	final TokenStreamRewriter rewriter;
 	final String lineEnding;
@@ -24,19 +24,26 @@ public class AddObjectConverter extends JavaParserBaseVisitor<Object> {
 	@Override
 	public Object visitMethodDeclaration(JavaParser.MethodDeclarationContext ctx) {
 		String methodName = ctx.IDENTIFIER().getText();
-		Matcher m = methodNamePattern.matcher(methodName);
+		Matcher m = addObjectMethodName.matcher(methodName);
 
 		if (ctx.typeTypeOrVoid().getText().equals("boolean")
 				&& m.matches()
 				&& ctx.formalParameters().children.size() == 3) {
 			String type = ctx.formalParameters().children.get(1).getChild(0).getChild(0).getText();
 
-			if (m.group(1).equals(type)) {
-//				System.out.println(type);
+			if (m.group(1).equals(type))
+				rewriteAddObject(ctx.methodBody(), type);
+		}
 
+		if ("loadList".equals(methodName))
+			hasLoadList = true;
 
-				// @formatter:off
-				ArrayList<String> lines = new ArrayList<>(Arrays.asList(
+		return null;
+	}
+
+	private void rewriteAddObject(JavaParser.MethodBodyContext methodBody, String type) {
+		// @formatter:off
+		ArrayList<String> lines = new ArrayList<>(Arrays.asList(
 		  String.format("	List<%1$s> list = loadList(%1$s.class);", type),
 						"	if (list.add(o)) {",
 						"		String json = genson.serialize(list);",
@@ -45,19 +52,11 @@ public class AddObjectConverter extends JavaParserBaseVisitor<Object> {
 						"	} else",
 						"		return false;",
 						"}"));
-				// @formatter:on
-				FormatHelper.increaseIndent(lines, 1);
-				lines.add(0, "{");
+		// @formatter:on
+		FormatHelper.increaseIndent(lines, 1);
+		lines.add(0, "{");
 
-				rewriter.replace(ctx.methodBody().start, ctx.methodBody().stop, String.join(lineEnding, lines));
-
-			}
-		}
-
-		if ("loadList".equals(methodName))
-			hasLoadList = true;
-
-		return null;
+		rewriter.replace(methodBody.start, methodBody.stop, String.join(lineEnding, lines));
 	}
 
 	HashSet<String> imports = new HashSet<>(Arrays.asList(
@@ -87,13 +86,20 @@ public class AddObjectConverter extends JavaParserBaseVisitor<Object> {
 	public Object visitClassBody(JavaParser.ClassBodyContext ctx) {
 		super.visitClassBody(ctx);
 
+		rewriter.insertAfter(ctx.start, "\n\n\tprivate static final Genson genson = new Genson();");
 
 		if (hasLoadList == false) {
 			String line = String.join(lineEnding, loadList) + lineEnding;
 			rewriter.insertBefore(ctx.stop, line);
-
-			System.out.println("loadList method added");
 		}
+
+		var getAllInstancesOf = Arrays.asList("public static <T> List<T> getAllInstancesOf(Class<T> clazz) {",
+				"\tList<T> list = loadList(clazz);",
+				"\treturn list;",
+				"}\n\n");
+		FormatHelper.increaseIndent(getAllInstancesOf, 1);
+		rewriter.insertBefore(ctx.stop, "\n" + String.join("\n", getAllInstancesOf));
+
 		return null;
 	}
 
