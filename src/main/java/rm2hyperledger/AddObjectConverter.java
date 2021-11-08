@@ -86,7 +86,11 @@ public class AddObjectConverter extends JavaParserBaseVisitor<Object> {
 	public Object visitClassBody(JavaParser.ClassBodyContext ctx) {
 		super.visitClassBody(ctx);
 
-		rewriter.insertAfter(ctx.start, "\n\n\tprivate static final Genson genson = new Genson();");
+		var fields = Arrays.asList("private static final Genson genson = new Genson();",
+				"public static ChaincodeStub stub;");
+		FormatHelper.increaseIndent(fields, 1);
+
+		rewriter.insertAfter(ctx.start, "\n\n" + String.join("\n\n", fields));
 
 		if (hasLoadList == false) {
 			String line = String.join(lineEnding, loadList) + lineEnding;
