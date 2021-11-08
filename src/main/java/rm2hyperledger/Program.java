@@ -68,6 +68,8 @@ public class Program {
 
 		convertEntities(targetFolder);
 
+		fixLineEnding(targetFolder);
+
 		copySkeleton(targetFolder);
 	}
 
@@ -124,10 +126,6 @@ public class Program {
 	}
 
 	private static String rewriteImplementation(Path implementationFile, ArrayList<String> methodsToRewrite) throws IOException {
-		if ("\n".equals(FileHelper.getFileLineEnding(implementationFile)) == false)
-			logger.warning(String.format("Unix line ending is required for %s. The file ends up with mixed line ending afterwards.", implementationFile.getFileName()));
-
-
 		CommonTokenStream tokens = new CommonTokenStream(new JavaLexer(CharStreams.fromPath(implementationFile)));
 		TokenStreamRewriter rewriter = new TokenStreamRewriter(tokens);
 
@@ -298,6 +296,23 @@ public class Program {
 				try (PrintWriter out = new PrintWriter(file.toFile())) {
 					out.print(rewriter.getText());
 				}
+			}
+			catch (IOException exception) {
+				logger.severe(exception.getMessage());
+			}
+		});
+	}
+
+	private static void fixLineEnding(String targetFolder) throws IOException {
+		Path servicesImplFolder = Path.of(targetFolder, "src\\main\\java");
+		assert Files.exists(servicesImplFolder);
+
+		Files.walk(servicesImplFolder).forEach(impl -> {
+			try {
+				String content = Files.readString(impl);
+				content = content.replace("\r\n", "\n");
+
+				Files.writeString(impl, content);
 			}
 			catch (IOException exception) {
 				logger.severe(exception.getMessage());
