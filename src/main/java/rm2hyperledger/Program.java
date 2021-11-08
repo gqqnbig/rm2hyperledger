@@ -330,6 +330,9 @@ public class Program {
 
 		Files.walk(servicesImplFolder).forEach(impl -> {
 			try {
+				if (Files.isDirectory(impl))
+					return;
+
 				String content = Files.readString(impl);
 				content = content.replace("\r\n", "\n");
 
