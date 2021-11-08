@@ -21,6 +21,7 @@ import java.util.logging.Logger;
 public class Program {
 	private static final Logger logger = Logger.getLogger("");
 
+	private static boolean canRunGit = false;
 
 	public static void main(String[] args) throws IOException, URISyntaxException {
 		Locale.setDefault(new Locale("en", "US"));
@@ -55,6 +56,16 @@ public class Program {
 //
 //		if (true)
 //			throw new UnsupportedOperationException();
+
+		try {
+			if (Files.isDirectory(Path.of(targetFolder, ".git"))) {
+				Runtime.getRuntime().exec("git --version", null, new java.io.File(targetFolder)).waitFor();
+				canRunGit = true;
+			}
+		}
+		catch (Exception e1) {
+			logger.info("Unable to run git: " + e1.getMessage());
+		}
 
 
 		convertEntityManager(targetFolder);
@@ -183,13 +194,23 @@ public class Program {
 		}
 		catch (UnsupportedOperationException e) {
 			//On Windows
-			try {
-				if (Files.isDirectory(Path.of(targetFolder, ".git"))) {
+			if (canRunGit) {
+				try {
+					Runtime.getRuntime().exec("git add gradle/wrapper/*", null, new java.io.File(targetFolder)).waitFor();
 					Runtime.getRuntime().exec("git add --chmod=+x gradlew", null, new java.io.File(targetFolder)).waitFor();
 				}
+				catch (Exception e1) {
+					logger.warning("Unable to set execution bit for file ~/gradlew. " + e1.getMessage());
+				}
+			}
+		}
+
+		if(canRunGit) {
+			try {
+				Runtime.getRuntime().exec("git add --force gradle/wrapper/*", null, new java.io.File(targetFolder)).waitFor();
 			}
 			catch (Exception e1) {
-				logger.warning("Unable to set execution bit for file ~/gradlew. " + e1.getMessage());
+				logger.warning("Failed to run git: " + e1.getMessage());
 			}
 		}
 	}
