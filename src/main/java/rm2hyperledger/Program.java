@@ -334,7 +334,7 @@ public class Program {
 					return;
 
 				String content = Files.readString(impl);
-				content = content.replace("\r\n", "\n");
+				content = content.replaceAll("((?<!\\r)\\n|\\r(?!\\n))", System.getProperty("line.separator"));
 
 				Files.writeString(impl, content);
 			}
