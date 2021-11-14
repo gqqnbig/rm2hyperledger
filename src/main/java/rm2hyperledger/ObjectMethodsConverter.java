@@ -9,14 +9,15 @@ import java.util.HashSet;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public class AddObjectConverter extends JavaParserBaseVisitor<Object> {
+public class ObjectMethodsConverter extends JavaParserBaseVisitor<Object> {
 	final static Pattern addObjectMethodName = Pattern.compile("add(\\w+)Object");
+	final static Pattern deleteObjectMethodName = Pattern.compile("delete(\\w+)Object");
 
 	final TokenStreamRewriter rewriter;
 	final String lineEnding;
 	boolean hasLoadList = false;
 
-	public AddObjectConverter(TokenStreamRewriter rewriter, String lineEnding) {
+	public ObjectMethodsConverter(TokenStreamRewriter rewriter, String lineEnding) {
 		this.rewriter = rewriter;
 		this.lineEnding = lineEnding;
 	}
@@ -24,15 +25,22 @@ public class AddObjectConverter extends JavaParserBaseVisitor<Object> {
 	@Override
 	public Object visitMethodDeclaration(JavaParser.MethodDeclarationContext ctx) {
 		String methodName = ctx.IDENTIFIER().getText();
-		Matcher m = addObjectMethodName.matcher(methodName);
+		Matcher m;
 
 		if (ctx.typeTypeOrVoid().getText().equals("boolean")
-				&& m.matches()
+				&& (m = addObjectMethodName.matcher(methodName)).matches()
 				&& ctx.formalParameters().children.size() == 3) {
 			String type = ctx.formalParameters().children.get(1).getChild(0).getChild(0).getText();
 
 			if (m.group(1).equals(type))
 				rewriteAddObject(ctx.methodBody(), type);
+		} else if (ctx.typeTypeOrVoid().getText().equals("boolean")
+				&& (m = deleteObjectMethodName.matcher(methodName)).matches()
+				&& ctx.formalParameters().children.size() == 3) {
+			String type = ctx.formalParameters().children.get(1).getChild(0).getChild(0).getText();
+
+			if (m.group(1).equals(type))
+				rewriteDeleteObject(ctx.methodBody(), type);
 		}
 
 		if ("loadList".equals(methodName))
@@ -52,6 +60,24 @@ public class AddObjectConverter extends JavaParserBaseVisitor<Object> {
 						"	} else",
 						"		return false;",
 						"}"));
+		// @formatter:on
+		FormatHelper.increaseIndent(lines, 1);
+		lines.add(0, "{");
+
+		rewriter.replace(methodBody.start, methodBody.stop, String.join(lineEnding, lines));
+	}
+
+	private void rewriteDeleteObject(JavaParser.MethodBodyContext methodBody, String type) {
+		// @formatter:off
+		ArrayList<String> lines = new ArrayList<>(Arrays.asList(
+  String.format("	List<%1$s> list = loadList(%1$s.class);", type),
+				"	if (list.remove(o)) {",
+				"		String json = genson.serialize(list);",
+  String.format("		stub.putStringState(\"%s\", json);", type),
+				"		return true;",
+				"	} else",
+				"		return false;",
+				"}"));
 		// @formatter:on
 		FormatHelper.increaseIndent(lines, 1);
 		lines.add(0, "{");

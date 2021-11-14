@@ -91,7 +91,7 @@ public class Program {
 		JavaParser parser = new JavaParser(tokens);
 		TokenStreamRewriter rewriter = new TokenStreamRewriter(tokens);
 
-		AddObjectConverter converter = new AddObjectConverter(rewriter, FileHelper.getFileLineEnding(EntityManagerFileName));
+		ObjectMethodsConverter converter = new ObjectMethodsConverter(rewriter, FileHelper.getFileLineEnding(EntityManagerFileName));
 		converter.visit(parser.compilationUnit());
 		try (PrintWriter out = new PrintWriter(EntityManagerFileName.toFile())) {
 			out.print(rewriter.getText());
