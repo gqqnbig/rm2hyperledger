@@ -1,6 +1,7 @@
 plugins {
     id 'java'
     id 'antlr'
+    id 'checkstyle'
 }
 
 group 'gqqnbig'
@@ -15,6 +16,16 @@ configurations {
         extendsFrom = extendsFrom.findAll { it != configurations.antlr }
     }
 }
+
+checkstyle {
+    toolVersion '8.21'
+    configFile file("config/checkstyle/checkstyle.xml")
+}
+
+checkstyleMain {
+    source = 'src'
+}
+
 
 dependencies {
     antlr "org.antlr:antlr4:4.9"
