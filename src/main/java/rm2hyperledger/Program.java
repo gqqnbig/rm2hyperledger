@@ -92,9 +92,22 @@ public class Program {
 				if (pkMap.containsKey(fileNameWithoutExtension))
 					return;
 
-				var e = EntityGuidAdder.add(file);
+				var e = EntityPKHelper.addGuid(file);
 				if (e != null)
 					pkMap.put(e.getKey(), e.getValue());
+			}
+			catch (IOException exception) {
+				logger.severe(exception.getMessage());
+			}
+		});
+
+		//For all entity classes, if they refer to another entity, the reference must be replaced by the PK.
+		Files.list(Path.of(targetFolder, "src\\main\\java\\entities")).forEach(file -> {
+			try {
+				if (file.toString().endsWith("EntityManager.java"))
+					return;
+
+				EntityPKHelper.changeReferenceToPK(file, pkMap);
 			}
 			catch (IOException exception) {
 				logger.severe(exception.getMessage());
