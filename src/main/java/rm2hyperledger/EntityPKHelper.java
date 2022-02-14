@@ -9,7 +9,11 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.file.Path;
 import java.util.AbstractMap;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class EntityPKHelper {
 
@@ -86,6 +90,11 @@ public class EntityPKHelper {
 
 		private final Map<String, String> pkMap;
 
+		/**
+		 * contains the original field names
+		 */
+		public ArrayList<String> changedFields = new ArrayList<>();
+
 		protected EntityReferenceChanger(TokenStreamRewriter rewriter, Map<String, String> pkMap) {
 			super(rewriter);
 			this.pkMap = pkMap;
@@ -98,12 +107,27 @@ public class EntityPKHelper {
 				var fieldDeclaration = memberDeclaration.fieldDeclaration();
 				if (fieldDeclaration != null) {
 					var typeStr = fieldDeclaration.typeType().getText();
-					String variableName = fieldDeclaration.variableDeclarators().getText();
+					var variableDeclarator = fieldDeclaration.variableDeclarators().variableDeclarator(0);
+					String variableName = variableDeclarator.variableDeclaratorId().getText();
 					if (this.pkMap.containsKey(typeStr) && variableName.endsWith("PK") == false) {
 						super.rewriter.replace(fieldDeclaration.typeType().start, fieldDeclaration.typeType().stop, "String");
-						super.rewriter.replace(fieldDeclaration.variableDeclarators().start, fieldDeclaration.variableDeclarators().stop, variableName + "PK");
+						super.rewriter.replace(variableDeclarator.start, variableDeclarator.stop, variableName + "PK");
 
 						super.rewriter.insertBefore(ctx.start, "@JsonProperty\n\t");
+
+						changedFields.add(variableName);
+					} else {
+						var pattern = Pattern.compile("List<([\\w\\d_]+)>");
+						var m = pattern.matcher(typeStr);
+						if (m.matches() && this.pkMap.containsKey(m.group(1)) && variableName.endsWith("PKs") == false) {
+							super.rewriter.replace(fieldDeclaration.typeType().start, fieldDeclaration.typeType().stop, "List<String>");
+							super.rewriter.replace(variableDeclarator.variableDeclaratorId().start, variableDeclarator.variableDeclaratorId().stop, variableName + "PKs");
+							if (variableDeclarator.variableInitializer() != null)
+								super.rewriter.replace(variableDeclarator.variableInitializer().start, variableDeclarator.variableInitializer().stop,
+										"new LinkedList<>()");
+
+							super.rewriter.insertBefore(ctx.start, "@JsonProperty\n\t");
+						}
 					}
 				}
 			}
