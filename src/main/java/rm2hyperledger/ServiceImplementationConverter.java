@@ -61,6 +61,19 @@ public class ServiceImplementationConverter extends ImportsCollector<Transaction
 			return super.visitClassBodyDeclaration(ctx);
 	}
 
+	@Override
+	public TransactionIntent visitTypeDeclaration(JavaParser.TypeDeclarationContext ctx) {
+		if (ctx.classDeclaration() != null) {
+			rewriter.insertBefore(ctx.start, "@Contract\n");
+			newImports.add("org.hyperledger.fabric.contract.annotation.*");
+
+			var implementsList = ctx.classDeclaration().typeList();
+			rewriter.insertAfter(implementsList.stop, ", ContractInterface");
+			newImports.add("org.hyperledger.fabric.contract.*");
+		}
+
+		return super.visitTypeDeclaration(ctx);
+	}
 
 	private static boolean hasAnnotation(List<JavaParser.ModifierContext> trees, String annotation) {
 		for (var tree : trees) {
