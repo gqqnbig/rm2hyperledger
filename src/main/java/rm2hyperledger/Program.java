@@ -48,14 +48,6 @@ public class Program {
 
 //		convertSystemFields(reModelFile, targetFolder);
 //		new SystemFieldsCollector(reModelFile).collect();
-//		var primaryKeyCollector = new PrimaryKeyCollector();
-//		var map = primaryKeyCollector.collect();
-//		for (var pair : map.entrySet()) {
-//			System.out.printf("%s -> %s\n", pair.getKey(), pair.getValue());
-//		}
-//
-//		if (true)
-//			throw new UnsupportedOperationException();
 
 		try {
 			if (Files.isDirectory(Path.of(targetFolder, ".git"))) {
@@ -75,7 +67,7 @@ public class Program {
 		convertContracts(targetFolder);
 
 		removeRefreshMethod(targetFolder);
-
+		convertReferenceToPK(reModelFile, targetFolder);
 
 		convertEntities(targetFolder);
 
@@ -83,6 +75,34 @@ public class Program {
 
 		copySkeleton(targetFolder);
 	}
+
+
+	private static void convertReferenceToPK(String reModelFile, String targetFolder) throws IOException {
+		var primaryKeyCollector = new PrimaryKeyCollector(reModelFile);
+		var pkMap = primaryKeyCollector.collect();
+
+		Files.list(Path.of(targetFolder, "src\\main\\java\\entities")).forEach(file -> {
+			try {
+				if (file.toString().endsWith("EntityManager.java"))
+					return;
+
+				var fileNameWithoutExtension = file.getFileName().toString();
+				assert fileNameWithoutExtension.endsWith(".java");
+				fileNameWithoutExtension = fileNameWithoutExtension.substring(0, fileNameWithoutExtension.length() - 5);
+				if (pkMap.containsKey(fileNameWithoutExtension))
+					return;
+
+				var e = EntityGuidAdder.add(file);
+				if (e != null)
+					pkMap.put(e.getKey(), e.getValue());
+			}
+			catch (IOException exception) {
+				logger.severe(exception.getMessage());
+			}
+		});
+
+	}
+
 
 	private static void convertEntityManager(String targetFolder) throws IOException {
 		Path EntityManagerFileName = Paths.get(targetFolder, "src\\main\\java\\entities\\EntityManager.java");
