@@ -6,15 +6,13 @@ import org.antlr.v4.runtime.TokenStreamRewriter;
 import org.antlr.v4.runtime.tree.TerminalNode;
 import rm2hyperledger.checkers.ModifierChecker;
 
-import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
-import java.util.logging.Logger;
 
+/**
+ * Add serialization support to entities
+ */
 public class EntityConverter extends ImportsCollector<Object> {
-	private static final Logger logger = Logger.getLogger(EntityConverter.class.getName());
-
-	private static final List<String> primaryTypes = Arrays.asList("byte", "short", "int", "long", "float", "double", "boolean", "char", "String");
 	private final CommonTokenStream tokens;
 
 
@@ -25,6 +23,7 @@ public class EntityConverter extends ImportsCollector<Object> {
 	 */
 	private final HashSet<String> changedNames = new HashSet<>();
 
+	public String entityName;
 
 	public EntityConverter(CommonTokenStream tokens, TokenStreamRewriter rewriter) {
 		super(rewriter);
@@ -35,6 +34,7 @@ public class EntityConverter extends ImportsCollector<Object> {
 	public Object visitTypeDeclaration(JavaParser.TypeDeclarationContext ctx) {
 
 		if (ModifierChecker.hasCIModifier(ctx.classOrInterfaceModifier(), JavaParser.PUBLIC) && ctx.classDeclaration() != null) {
+			entityName = ctx.classDeclaration().IDENTIFIER().getText();
 			rewriter.insertBefore(ctx.start, "@DataType()\n");
 			newImports.add("org.hyperledger.fabric.contract.annotation.*");
 			return visitClassBody(ctx.classDeclaration().classBody());
