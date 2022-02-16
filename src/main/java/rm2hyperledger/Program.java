@@ -42,6 +42,10 @@ public class Program {
 		String targetFolder = "D:\\rm2pt\\cocome-hyperledger";
 		String reModelFile = "D:\\rm2pt\\RM2PT-win32.win32.x86_64-1.2.1\\workspace\\CoCoMe\\RequirementsModel\\cocome.remodel";
 
+		if (System.getenv("autohotkey") != null)
+			Runtime.getRuntime().exec(new String[]{System.getenv("autohotkey"), Path.of("./src/autohotkey/closeTortoisegit.ahk").toAbsolutePath().toString(), targetFolder});
+		else
+			logger.info("Some processes may lock " + targetFolder + ", set environment variable \"autohotkey\" to close these processes.");
 
 //		convertSystemFields(reModelFile, targetFolder);
 //		new SystemFieldsCollector(reModelFile).collect();
