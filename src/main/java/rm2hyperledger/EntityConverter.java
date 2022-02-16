@@ -34,10 +34,13 @@ public class EntityConverter extends ImportsCollector<Object> {
 	public Object visitTypeDeclaration(JavaParser.TypeDeclarationContext ctx) {
 
 		if (ModifierChecker.hasCIModifier(ctx.classOrInterfaceModifier(), JavaParser.PUBLIC) && ctx.classDeclaration() != null) {
-			entityName = ctx.classDeclaration().IDENTIFIER().getText();
-			rewriter.insertBefore(ctx.start, "@DataType()\n");
-			newImports.add("org.hyperledger.fabric.contract.annotation.*");
-			return visitClassBody(ctx.classDeclaration().classBody());
+			var classDeclaration = ctx.classDeclaration();
+			if (classDeclaration.typeList() != null && classDeclaration.typeList().getText().contains("Serializable")) {
+				entityName = ctx.classDeclaration().IDENTIFIER().getText();
+				rewriter.insertBefore(ctx.start, "@DataType()\n");
+				newImports.add("org.hyperledger.fabric.contract.annotation.*");
+				return visitClassBody(ctx.classDeclaration().classBody());
+			}
 		}
 		return super.visitTypeDeclaration(ctx);
 	}
