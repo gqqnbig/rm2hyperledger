@@ -52,13 +52,12 @@ public class EntityPKHelper {
 		}
 	}
 
-	static class EntityGuidAdder extends JavaParserBaseVisitor<Object> {
-		private final TokenStreamRewriter rewriter;
+	static class EntityGuidAdder extends ImportsCollector<Object> {
 		private boolean isAdded = false;
 		private String className = "";
 
 		protected EntityGuidAdder(TokenStreamRewriter rewriter) {
-			this.rewriter = rewriter;
+			super(rewriter);
 		}
 
 		@Override
@@ -78,6 +77,8 @@ public class EntityPKHelper {
 							"\t// Without @JsonProperty, genson will not set this field during deserialization.\n" +
 							"\t@JsonProperty\n" +
 							"\tprivate final String guid = EntityManager.getGuid();");
+			super.newImports.add("com.owlike.genson.annotation.*");
+
 			isAdded = true;
 
 			return null;
