@@ -85,9 +85,7 @@ public class EntityPKHelper {
 		}
 	}
 
-	static class FieldDefinitionConverter extends JavaParserBaseVisitor<Object> {
-
-		private final TokenStreamRewriter rewriter;
+	static class FieldDefinitionConverter extends ImportsCollector<Object> {
 		private final Map<String, String> pkMap;
 
 		/**
@@ -96,7 +94,7 @@ public class EntityPKHelper {
 		public ArrayList<String> changedFields = new ArrayList<>();
 
 		protected FieldDefinitionConverter(TokenStreamRewriter rewriter, Map<String, String> pkMap) {
-			this.rewriter = rewriter;
+			super(rewriter);
 			this.pkMap = pkMap;
 		}
 
@@ -114,6 +112,7 @@ public class EntityPKHelper {
 						rewriter.replace(variableDeclarator.start, variableDeclarator.stop, variableName + "PK");
 
 						rewriter.insertBefore(ctx.start, "@JsonProperty\n\t");
+						super.newImports.add("com.owlike.genson.annotation.*");
 
 						changedFields.add(variableName);
 						return null;
@@ -128,6 +127,7 @@ public class EntityPKHelper {
 										"new LinkedList<>()");
 
 							rewriter.insertBefore(ctx.start, "@JsonProperty\n\t");
+							super.newImports.add("com.owlike.genson.annotation.*");
 
 							return null;
 						}
