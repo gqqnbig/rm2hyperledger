@@ -86,8 +86,8 @@ public class EntityConverter extends ImportsCollector<Object> {
 		if (fieldDeclaration.variableDeclarators().children.size() != 1)
 			throw new UnsupportedOperationException(String.format("\"%s\" is not supported. Each field must have its own declaration.", ctx.getText()));
 
-		JavaParser.VariableDeclaratorContext v = fieldDeclaration.variableDeclarators().variableDeclarator(0);
-		String name = v.getText();
+		var v = fieldDeclaration.variableDeclarators().variableDeclarator(0).variableDeclaratorId();
+		String name = v.IDENTIFIER().getText();
 		if (isInReferenceSection == false && name.equals("guid") == false) {
 			rewriter.insertBefore(ctx.start, "@Property()\n\t");
 			newImports.add("org.hyperledger.fabric.contract.annotation.*");
