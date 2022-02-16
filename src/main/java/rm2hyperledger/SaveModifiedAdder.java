@@ -11,7 +11,7 @@ public class SaveModifiedAdder extends JavaParserBaseVisitor<Object> {
 
 	HashMap<String, String> definedVariables;
 	HashMap<String, String> variableTypesToSave;
-	private TokenStreamRewriter rewriter;
+	private final TokenStreamRewriter rewriter;
 
 	public SaveModifiedAdder(HashSet<String> entityTypes, TokenStreamRewriter rewriter) {
 		this.entityTypes = entityTypes;

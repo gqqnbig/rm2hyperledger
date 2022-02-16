@@ -10,10 +10,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.*;
 import java.nio.file.attribute.PosixFilePermission;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Locale;
+import java.util.*;
 import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -70,10 +67,34 @@ public class Program {
 		convertReferenceToPK(reModelFile, targetFolder);
 
 		convertEntities(targetFolder);
+		saveModifiedEntitiesInTransaction(targetFolder);
 
 		fixLineEnding(targetFolder);
 
 		copySkeleton(targetFolder);
+	}
+
+	private static void saveModifiedEntitiesInTransaction(String targetFolder) throws IOException {
+		Path servicesImplFolder = Path.of(targetFolder, "src\\main\\java\\services\\impl");
+		assert Files.exists(servicesImplFolder);
+
+		Files.list(servicesImplFolder).forEach(impl -> {
+			try {
+				CommonTokenStream tokens = new CommonTokenStream(new JavaLexer(CharStreams.fromPath(impl)));
+
+				JavaParser parser = new JavaParser(tokens);
+				TokenStreamRewriter rewriter = new TokenStreamRewriter(tokens);
+				var converter = new SaveModifiedAdder(entityNames, rewriter);
+
+				converter.visit(parser.compilationUnit());
+				try (PrintWriter out = new PrintWriter(impl.toFile())) {
+					out.print(rewriter.getText());
+				}
+			}
+			catch (IOException exception) {
+				logger.severe(exception.getMessage());
+			}
+		});
 	}
 
 
@@ -329,6 +350,9 @@ public class Program {
 		});
 	}
 
+
+	static HashSet<String> entityNames = new HashSet<>();
+
 	private static void convertEntities(String targetFolder) throws IOException {
 
 		Path folder = Path.of(targetFolder, "src\\main\\java\\entities");
@@ -347,8 +371,11 @@ public class Program {
 				var converter = new EntityConverter(tokens, rewriter);
 
 				converter.visit(parser.compilationUnit());
-				try (PrintWriter out = new PrintWriter(file.toFile())) {
-					out.print(rewriter.getText());
+				if (converter.entityName != null) {
+					entityNames.add(converter.entityName);
+					try (PrintWriter out = new PrintWriter(file.toFile())) {
+						out.print(rewriter.getText());
+					}
 				}
 			}
 			catch (IOException exception) {
