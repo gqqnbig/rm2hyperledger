@@ -22,7 +22,7 @@ public class EntityPKHelper {
 	 * @return
 	 * @throws IOException
 	 */
-	public static Map.Entry<String, String> addGuid(Path file) throws IOException {
+	public static FieldDefinition addGuid(Path file) throws IOException {
 
 		CommonTokenStream tokens = new CommonTokenStream(new JavaLexer(CharStreams.fromPath(file)));
 		JavaParser parser = new JavaParser(tokens);
@@ -35,12 +35,12 @@ public class EntityPKHelper {
 		}
 
 		if (converter.isAdded)
-			return new AbstractMap.SimpleEntry<>(converter.className, "guid");
+			return new FieldDefinition(converter.className, "guid", "String");
 		else
 			return null;
 	}
 
-	public static void changeReferenceToPK(Path file, Map<String, String> pkMap) throws IOException {
+	public static void changeReferenceToPK(Path file, List<FieldDefinition> pkMap) throws IOException {
 		CommonTokenStream tokens = new CommonTokenStream(new JavaLexer(CharStreams.fromPath(file)));
 		JavaParser parser = new JavaParser(tokens);
 		TokenStreamRewriter rewriter = new TokenStreamRewriter(tokens);
@@ -86,16 +86,39 @@ public class EntityPKHelper {
 	}
 
 	static class FieldDefinitionConverter extends ImportsCollector<Object> {
-		private final Map<String, String> pkMap;
+		private final List<FieldDefinition> pkMap;
 
 		/**
 		 * contains the original field names
 		 */
 		public ArrayList<String> changedFields = new ArrayList<>();
 
-		protected FieldDefinitionConverter(TokenStreamRewriter rewriter, Map<String, String> pkMap) {
+		protected FieldDefinitionConverter(TokenStreamRewriter rewriter, List<FieldDefinition> pkMap) {
 			super(rewriter);
 			this.pkMap = pkMap;
+		}
+
+		private static String castToReferenceType(String type) {
+			switch (type) {
+				case "byte":
+					return "Byte";
+				case "short":
+					return "Short";
+				case "int":
+					return "Integer";
+				case "long":
+					return "Long";
+				case "float":
+					return "Float";
+				case "double":
+					return "Double";
+				case "boolean":
+					return "Boolean";
+				case "char":
+					return "Character";
+				default:
+					return type;
+			}
 		}
 
 		@Override
@@ -107,8 +130,9 @@ public class EntityPKHelper {
 					var typeStr = fieldDeclaration.typeType().getText();
 					var variableDeclarator = fieldDeclaration.variableDeclarators().variableDeclarator(0);
 					String variableName = variableDeclarator.variableDeclaratorId().getText();
-					if (this.pkMap.containsKey(typeStr) && variableName.endsWith("PK") == false) {
-						rewriter.replace(fieldDeclaration.typeType().start, fieldDeclaration.typeType().stop, "String");
+					if (this.pkMap.stream().anyMatch(s -> s.ClassName.equals(typeStr)) && variableName.endsWith("PK") == false) {
+						var d = this.pkMap.stream().filter(s -> s.ClassName.equals(typeStr)).findAny().get();
+						rewriter.replace(fieldDeclaration.typeType().start, fieldDeclaration.typeType().stop, d.TypeName);
 						rewriter.replace(variableDeclarator.start, variableDeclarator.stop, variableName + "PK");
 
 						rewriter.insertBefore(ctx.start, "@JsonProperty\n\t");
@@ -119,8 +143,9 @@ public class EntityPKHelper {
 					} else {
 						var pattern = Pattern.compile("List<([\\w\\d_]+)>");
 						var m = pattern.matcher(typeStr);
-						if (m.matches() && this.pkMap.containsKey(m.group(1)) && variableName.endsWith("PKs") == false) {
-							rewriter.replace(fieldDeclaration.typeType().start, fieldDeclaration.typeType().stop, "List<String>");
+						if (m.matches() && this.pkMap.stream().anyMatch(s -> s.ClassName.equals(m.group(1))) && variableName.endsWith("PKs") == false) {
+							var d = this.pkMap.stream().filter(s -> s.ClassName.equals(m.group(1))).findAny().get();
+							rewriter.replace(fieldDeclaration.typeType().start, fieldDeclaration.typeType().stop, "List<" + castToReferenceType(d.TypeName) + ">");
 							rewriter.replace(variableDeclarator.variableDeclaratorId().start, variableDeclarator.variableDeclaratorId().stop, variableName + "PKs");
 							if (variableDeclarator.variableInitializer() != null)
 								rewriter.replace(variableDeclarator.variableInitializer().start, variableDeclarator.variableInitializer().stop,

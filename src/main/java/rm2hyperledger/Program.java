@@ -14,6 +14,7 @@ import java.util.*;
 import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 public class Program {
 	private static final Logger logger = Logger.getLogger("");
@@ -68,9 +69,11 @@ public class Program {
 		convertContracts(targetFolder);
 
 		removeRefreshMethod(targetFolder);
+
+		//Why can't we run convertEntities before convertReferenceToPK?
+		convertEntities(targetFolder);
 		convertReferenceToPK(reModelFile, targetFolder);
 
-		convertEntities(targetFolder);
 		saveModifiedEntitiesInTransaction(targetFolder);
 
 		fixLineEnding(targetFolder);
@@ -101,25 +104,47 @@ public class Program {
 		});
 	}
 
+	private static String getFileNameWithoutExtension(Path file) {
+		var f = file.getFileName().toString();
+		var p = f.lastIndexOf(".");
+		if (p != -1)
+			return f.substring(0, p);
+		else
+			return f;
+	}
 
 	private static void convertReferenceToPK(String reModelFile, String targetFolder) throws IOException {
 		var primaryKeyCollector = new PrimaryKeyCollector(reModelFile);
-		var pkMap = primaryKeyCollector.collect();
+
+		var pkMap = primaryKeyCollector.collect().entrySet().stream().map(s -> {
+			try {
+				CommonTokenStream tokens = new CommonTokenStream(new JavaLexer(CharStreams.fromPath(Path.of(targetFolder, "src\\main\\java\\entities", s.getKey() + ".java"))));
+
+				JavaParser parser = new JavaParser(tokens);
+				String variableName = EntityConverter.lowercaseFirstLetter(s.getValue());
+				var typeName = FieldTypeFinder.findField(parser.compilationUnit(), variableName);
+				if (typeName == null)
+					throw new RuntimeException(String.format("Field %s is not found in file %s.", variableName, s.getKey()));
+				return new FieldDefinition(s.getKey(), variableName, typeName);
+			}
+			catch (IOException exception) {
+				return null;
+			}
+		}).filter(Objects::nonNull).collect(Collectors.toList());
+
 
 		Files.list(Path.of(targetFolder, "src\\main\\java\\entities")).forEach(file -> {
 			try {
-				if (file.toString().endsWith("EntityManager.java"))
+				var fileNameWithoutExtension = getFileNameWithoutExtension(file);
+				if (fileNameWithoutExtension.equals("EntityManager"))
 					return;
 
-				var fileNameWithoutExtension = file.getFileName().toString();
-				assert fileNameWithoutExtension.endsWith(".java");
-				fileNameWithoutExtension = fileNameWithoutExtension.substring(0, fileNameWithoutExtension.length() - 5);
-				if (pkMap.containsKey(fileNameWithoutExtension))
+				if (pkMap.stream().anyMatch(s -> s.ClassName.equals(fileNameWithoutExtension)))
 					return;
 
 				var e = EntityPKHelper.addGuid(file);
 				if (e != null)
-					pkMap.put(e.getKey(), e.getValue());
+					pkMap.add(e);
 			}
 			catch (IOException exception) {
 				logger.severe(exception.getMessage());

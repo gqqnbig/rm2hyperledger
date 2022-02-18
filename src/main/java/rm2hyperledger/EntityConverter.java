@@ -104,7 +104,7 @@ public class EntityConverter extends ImportsCollector<Object> {
 		}
 	}
 
-	private static String lowercaseFirstLetter(String name) {
+	public static String lowercaseFirstLetter(String name) {
 		return Character.toLowerCase(name.charAt(0)) + name.substring(1);
 	}
 
