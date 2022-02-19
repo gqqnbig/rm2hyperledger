@@ -3,6 +3,7 @@ package rm2hyperledger;
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.TokenStreamRewriter;
+import rm2hyperledger.operations.EntityManagerSaveStates;
 import rm2hyperledger.operations.TransactionReturnListToArray;
 
 import java.io.IOException;
@@ -63,7 +64,8 @@ public class Program {
 		}
 
 
-		convertEntityManager(targetFolder);
+		new EntityManagerSaveStates(targetFolder).editCommit();
+
 		convertEntityManagerCallSite(targetFolder);
 
 
@@ -168,21 +170,6 @@ public class Program {
 			}
 		});
 
-	}
-
-
-	private static void convertEntityManager(String targetFolder) throws IOException {
-		Path EntityManagerFileName = Paths.get(targetFolder, "src\\main\\java\\entities\\EntityManager.java");
-		CommonTokenStream tokens = new CommonTokenStream(new JavaLexer(CharStreams.fromPath(EntityManagerFileName)));
-
-		JavaParser parser = new JavaParser(tokens);
-		TokenStreamRewriter rewriter = new TokenStreamRewriter(tokens);
-
-		ObjectMethodsConverter converter = new ObjectMethodsConverter(rewriter, FileHelper.getFileLineEnding(EntityManagerFileName));
-		converter.visit(parser.compilationUnit());
-		try (PrintWriter out = new PrintWriter(EntityManagerFileName.toFile())) {
-			out.print(rewriter.getText());
-		}
 	}
 
 	private static void convertContracts(String targetFolder) throws IOException {
