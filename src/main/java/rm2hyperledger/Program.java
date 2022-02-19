@@ -90,13 +90,14 @@ public class Program {
 				CommonTokenStream tokens = new CommonTokenStream(new JavaLexer(CharStreams.fromPath(impl)));
 
 				JavaParser parser = new JavaParser(tokens);
-				TokenStreamRewriter rewriter = new TokenStreamRewriter(tokens);
+				TokenStreamRewriter2 rewriter = new TokenStreamRewriter2(tokens);
 				var converter = new SaveModifiedAdder(entityNames, rewriter);
 
 				converter.visit(parser.compilationUnit());
-				try (PrintWriter out = new PrintWriter(impl.toFile())) {
-					out.print(rewriter.getText());
-				}
+				if (rewriter.hasChanges())
+					try (PrintWriter out = new PrintWriter(impl.toFile())) {
+						out.print(rewriter.getText());
+					}
 			}
 			catch (IOException exception) {
 				logger.severe(exception.getMessage());
