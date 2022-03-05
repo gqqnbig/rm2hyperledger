@@ -18,6 +18,10 @@ public abstract class GitCommit {
 		this.targetFolder = targetFolder;
 	}
 
+	/**
+	 *
+	 * @return changed files to be committed in Git
+	 */
 	protected abstract ArrayList<Path> editCommitCore() throws IOException;
 
 	public void editCommit() {
