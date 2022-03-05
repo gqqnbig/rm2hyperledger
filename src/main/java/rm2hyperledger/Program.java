@@ -86,30 +86,6 @@ public class Program {
 		copySkeleton(targetFolder);
 	}
 
-	private static void saveModifiedEntitiesInTransaction(String targetFolder) throws IOException {
-		Path servicesImplFolder = Path.of(targetFolder, "src\\main\\java\\services\\impl");
-		assert Files.exists(servicesImplFolder);
-
-		Files.list(servicesImplFolder).forEach(impl -> {
-			try {
-				CommonTokenStream tokens = new CommonTokenStream(new JavaLexer(CharStreams.fromPath(impl)));
-
-				JavaParser parser = new JavaParser(tokens);
-				TokenStreamRewriter2 rewriter = new TokenStreamRewriter2(tokens);
-				var converter = new SaveModifiedAdder(entityNames, rewriter);
-
-				converter.visit(parser.compilationUnit());
-				if (rewriter.hasChanges())
-					try (PrintWriter out = new PrintWriter(impl.toFile())) {
-						out.print(rewriter.getText());
-					}
-			}
-			catch (IOException exception) {
-				logger.severe(exception.getMessage());
-			}
-		});
-	}
-
 	private static String getFileNameWithoutExtension(Path file) {
 		var f = file.getFileName().toString();
 		var p = f.lastIndexOf(".");
