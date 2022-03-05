@@ -10,17 +10,20 @@ import java.io.PrintWriter;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.HashSet;
+import java.util.*;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 public class ConvertGlobalFields extends GitCommit {
 
 
 	private final String remodelFile;
+	private final List<FieldDefinition> pkMap;
 
-	public ConvertGlobalFields(String targetFolder, String remodelFile) {
+	public ConvertGlobalFields(String targetFolder, String remodelFile, List<FieldDefinition> pkMap) {
 		super("Convert global fields", targetFolder);
 		this.remodelFile = remodelFile;
+		this.pkMap = pkMap;
 	}
 
 	@Override
@@ -31,7 +34,9 @@ public class ConvertGlobalFields extends GitCommit {
 
 		var systemFile = Path.of(targetFolder, "src\\main\\java\\services\\", fileName + "System.java");
 
-		var fields = SystemFieldsCollector.collect(systemFile);
+		List<GlobalFieldType> globalFields = SystemFieldsCollector.collect(systemFile).entrySet().stream().
+				map(e -> new GlobalFieldType(e.getKey(), e.getValue(), pkMap.stream().filter(m -> m.ClassName.equals(e.getValue())).map(d -> d.TypeName).findFirst().get())).
+				collect(Collectors.toList());
 
 
 		ArrayList<Path> changedFiles = new ArrayList<>();
@@ -42,7 +47,7 @@ public class ConvertGlobalFields extends GitCommit {
 
 					JavaParser parser = new JavaParser(tokens);
 					TokenStreamRewriter2 rewriter = new TokenStreamRewriter2(tokens);
-					var converter = new PKAdder(rewriter, fields);
+					var converter = new PKAdder(rewriter, globalFields);
 
 					converter.visit(parser.compilationUnit());
 					if (rewriter.hasChanges()) {
@@ -62,28 +67,89 @@ public class ConvertGlobalFields extends GitCommit {
 	}
 
 
-	static class PKAdder extends JavaParserBaseVisitor<Object> {
+	static class PKAdder extends ImportsCollector<Object> {
 
-		private final TokenStreamRewriter rewriter;
-		private final HashSet<String> globalFields;
+		private final List<GlobalFieldType> globalFields;
 
-		public PKAdder(TokenStreamRewriter rewriter, HashSet<String> globalFields) {
-			this.rewriter = rewriter;
+		public PKAdder(TokenStreamRewriter rewriter, List<GlobalFieldType> globalFields) {
+			super(rewriter);
 
 			this.globalFields = globalFields;
 		}
 
-		@Override
-		public Object visitClassBodyDeclaration(JavaParser.ClassBodyDeclarationContext ctx) {
-			return super.visitClassBodyDeclaration(ctx);
-		}
+//		@Override
+//		public Object visitClassBodyDeclaration(JavaParser.ClassBodyDeclarationContext ctx) {
+//			return super.visitClassBodyDeclaration(ctx);
+//		}
 
 		@Override
 		public Object visitFieldDeclaration(JavaParser.FieldDeclarationContext ctx) {
 			String fieldName = ctx.variableDeclarators().variableDeclarator(0).variableDeclaratorId().IDENTIFIER().getText();
-			if (globalFields.contains(fieldName)) {
-				rewriter.insertAfter(ctx.stop, "\n\tprivate Object " + fieldName + "PK;");
+			if (globalFields.stream().anyMatch(f -> f.fieldName.equals(fieldName))) {
+				rewriter.replace(ctx.start, ctx.stop, "Object " + fieldName + "PK;");
 			}
+			return null;
+		}
+
+		@Override
+		public Object visitMethodDeclaration(JavaParser.MethodDeclarationContext ctx) {
+			String methodName = ctx.IDENTIFIER().getText();
+			String returnType = ctx.typeTypeOrVoid().getText();
+
+			var p = Pattern.compile("(get|set)([\\w\\d_]+)");
+			var m = p.matcher(methodName);
+
+			if (m.matches() == false)
+				return null;
+
+
+			var fieldDefinition = globalFields.stream().filter(f -> f.fieldName.equals(StringHelper.lowercaseFirstLetter(m.group(2)))).findFirst();
+			if (fieldDefinition.isPresent()) {
+				if (m.group(1).equals("get")) {
+					// @formatter:off
+					ArrayList<String> lines = new ArrayList<>(Arrays.asList(
+							String.format("	for (var i : EntityManager.getAllInstancesOf(%s.class)) {", returnType),
+							String.format("		if (Objects.equals(i.getPK(), %s()))", methodName + "PK"),
+										  "			return i;",
+										  "	}",
+										  "	return null;",
+										  "}"));
+					// @formatter:on
+					FormatHelper.increaseIndent(lines, 1);
+
+					lines.add(0, "{");
+					rewriter.replace(ctx.methodBody().start, ctx.methodBody().stop, String.join("\n", lines));
+					super.newImports.add("java.util.*");
+
+					String pkFieldName = StringHelper.lowercaseFirstLetter(m.group(2)) + "PK";
+					lines = new ArrayList<>(Arrays.asList(
+							"private Object %1$sPK() {",
+							"\tif (%2$s == null)",
+							"\t\t%2$s = genson.deserialize(EntityManager.stub.getStringState(\"system.%2$s\"), %3$s.class);",
+							"",
+							"\treturn %2$s;",
+							"}"));
+					FormatHelper.increaseIndent(lines, 1);
+
+					rewriter.insertAfter(ctx.stop, "\n\n" + String.format(String.join("\n", lines), methodName, pkFieldName, EntityPKHelper.FieldDefinitionConverter.castToReferenceType(fieldDefinition.get().pkType)));
+				} else if (m.group(1).equals("set")) {
+					var parameterName = ctx.formalParameters().formalParameterList().formalParameter(0).variableDeclaratorId().IDENTIFIER().getText();
+
+					rewriter.replace(ctx.methodBody().start, ctx.methodBody().stop, "{\n\t\t" + String.format("%sPK(%s.getPK());", methodName, parameterName) + "\n\t}");
+
+					String pkFieldName = StringHelper.lowercaseFirstLetter(m.group(2)) + "PK";
+					ArrayList<String> lines = new ArrayList<>(Arrays.asList(
+							"private void %1$sPK(Object %2$s) {",
+							"\tString json = genson.serialize(%2$s);",
+							"\tEntityManager.stub.putStringState(\"system.%2$s\", json);",
+							"\tthis.%2$s = %2$s;",
+							"}"));
+					FormatHelper.increaseIndent(lines, 1);
+
+					rewriter.insertAfter(ctx.stop, "\n\n" + String.format(String.join("\n", lines), methodName, pkFieldName));
+				}
+			}
+
 			return null;
 		}
 	}
@@ -96,20 +162,19 @@ public class ConvertGlobalFields extends GitCommit {
 	 */
 	static class SystemFieldsCollector extends JavaParserBaseVisitor<Object> {
 
-		public static HashSet<String> collect(Path systemFile) throws IOException {
+		public static HashMap<String, String> collect(Path systemFile) throws IOException {
 			CommonTokenStream tokens = new CommonTokenStream(new JavaLexer(CharStreams.fromPath(systemFile)));
 			JavaParser parser = new JavaParser(tokens);
 			var collector = new SystemFieldsCollector();
 
 			collector.visit(parser.compilationUnit());
-			collector.getters.retainAll(collector.setters);
+//			collector.getters.retainAll(collector.setters);
 
 			return collector.getters;
 		}
 
 
-		HashSet<String> getters = new HashSet<>();
-		HashSet<String> setters = new HashSet<>();
+		HashMap<String, String> getters = new HashMap<>();
 
 		private SystemFieldsCollector() {
 
@@ -120,9 +185,7 @@ public class ConvertGlobalFields extends GitCommit {
 		public Object visitInterfaceMethodDeclaration(JavaParser.InterfaceMethodDeclarationContext ctx) {
 			var identifier = ctx.IDENTIFIER().getText().trim();
 			if (identifier.startsWith("get") && ctx.typeTypeOrVoid().getText().equals("void") == false && ctx.formalParameters().children.size() == 2) {
-				getters.add(lowercaseFirstLetter(identifier.substring(3)));
-			} else if (identifier.startsWith("set") && ctx.typeTypeOrVoid().getText().equals("void") && ctx.formalParameters().children.size() == 3) {
-				setters.add(lowercaseFirstLetter(identifier.substring(3)));
+				getters.put(lowercaseFirstLetter(identifier.substring(3)), ctx.typeTypeOrVoid().getText());
 			}
 
 			return null;
@@ -133,6 +196,18 @@ public class ConvertGlobalFields extends GitCommit {
 				return Character.toLowerCase(str.charAt(0)) + str.substring(1);
 			else
 				return str;
+		}
+	}
+
+	static class GlobalFieldType {
+		String fieldName;
+		String fieldType;
+		String pkType;
+
+		public GlobalFieldType(String fieldName, String fieldType, String pkType) {
+			this.fieldName = fieldName;
+			this.fieldType = fieldType;
+			this.pkType = pkType;
 		}
 	}
 }

@@ -85,7 +85,7 @@ public class EntityPKHelper {
 		}
 	}
 
-	static class FieldDefinitionConverter extends ImportsCollector<Object> {
+	public static class FieldDefinitionConverter extends ImportsCollector<Object> {
 		private final List<FieldDefinition> pkMap;
 
 		/**
@@ -98,7 +98,7 @@ public class EntityPKHelper {
 			this.pkMap = pkMap;
 		}
 
-		private static String castToReferenceType(String type) {
+		public static String castToReferenceType(String type) {
 			switch (type) {
 				case "byte":
 					return "Byte";

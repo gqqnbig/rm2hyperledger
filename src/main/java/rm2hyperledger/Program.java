@@ -50,8 +50,6 @@ public class Program {
 		else
 			logger.info("Some processes may lock " + targetFolder + ", set environment variable \"autohotkey\" to close these processes.");
 
-//		convertSystemFields(reModelFile, targetFolder);
-//		new SystemFieldsCollector(reModelFile).collect();
 
 		try {
 			if (Files.isDirectory(Path.of(targetFolder, ".git"))) {
@@ -79,7 +77,8 @@ public class Program {
 		convertEntities(targetFolder);
 		convertReferenceToPK(reModelFile, targetFolder);
 
-		saveModifiedEntitiesInTransaction(targetFolder);
+		new ConvertGlobalFields(targetFolder, reModelFile, pkMap).editCommit();
+		new SaveModified(targetFolder, entityNames).editCommit();
 
 		fixLineEnding(targetFolder);
 
@@ -95,15 +94,17 @@ public class Program {
 			return f;
 	}
 
+	static List<FieldDefinition> pkMap;
+
 	private static void convertReferenceToPK(String reModelFile, String targetFolder) throws IOException {
 		var primaryKeyCollector = new PrimaryKeyCollector(reModelFile);
 
-		var pkMap = primaryKeyCollector.collect().entrySet().stream().map(s -> {
+		pkMap = primaryKeyCollector.collect().entrySet().stream().map(s -> {
 			try {
 				CommonTokenStream tokens = new CommonTokenStream(new JavaLexer(CharStreams.fromPath(Path.of(targetFolder, "src\\main\\java\\entities", s.getKey() + ".java"))));
 
 				JavaParser parser = new JavaParser(tokens);
-				String variableName = EntityConverter.lowercaseFirstLetter(s.getValue());
+				String variableName = StringHelper.lowercaseFirstLetter(s.getValue());
 				var typeName = FieldTypeFinder.findField(parser.compilationUnit(), variableName);
 				if (typeName == null)
 					throw new RuntimeException(String.format("Field %s is not found in file %s.", variableName, s.getKey()));
@@ -278,19 +279,6 @@ public class Program {
 						logger.warning(String.format("IOException for %s: %s", destination, e.getMessage()));
 					}
 				});
-	}
-
-
-	private static void convertSystemFields(String reModelPath, String targetFolder) throws IOException {
-		var fileName = FileHelper.getFileNameWithoutExtension(Path.of(reModelPath).getFileName().toString());
-
-		System.out.println(fileName);
-
-		var systemFile = Path.of(targetFolder, "src\\main\\java\\services\\", fileName + "System.java");
-
-		var fields = SystemFieldsCollector.collect(systemFile);
-
-		System.out.println("System fields: " + String.join(", ", fields));
 	}
 
 	private static void convertEntityManagerCallSite(String targetFolder) throws IOException {
