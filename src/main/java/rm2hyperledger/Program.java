@@ -3,8 +3,7 @@ package rm2hyperledger;
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.TokenStreamRewriter;
-import rm2hyperledger.operations.EntityManagerSaveStates;
-import rm2hyperledger.operations.TransactionReturnListToArray;
+import rm2hyperledger.operations.*;
 
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -70,6 +69,8 @@ public class Program {
 		convertContracts(targetFolder);
 
 		new TransactionReturnListToArray(targetFolder).editCommit();
+
+		new AddGensonToContract(targetFolder).editCommit();
 
 		removeRefreshMethod(targetFolder);
 
