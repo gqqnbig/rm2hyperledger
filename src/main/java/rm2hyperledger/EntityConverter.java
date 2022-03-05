@@ -97,15 +97,11 @@ public class EntityConverter extends ImportsCollector<Object> {
 
 			if (Character.isUpperCase(name.charAt(0))) {
 				changedNames.add(name);
-				name = lowercaseFirstLetter(name);
+				name = StringHelper.lowercaseFirstLetter(name);
 
 				rewriter.replace(v.start, v.stop, name);
 			}
 		}
-	}
-
-	public static String lowercaseFirstLetter(String name) {
-		return Character.toLowerCase(name.charAt(0)) + name.substring(1);
 	}
 
 	boolean isInThis = false;
@@ -117,7 +113,7 @@ public class EntityConverter extends ImportsCollector<Object> {
 			if (methodParameters.contains(name) && isInThis == false)
 				return null;
 
-			rewriter.replace(ctx.start, ctx.stop, lowercaseFirstLetter(name));
+			rewriter.replace(ctx.start, ctx.stop, StringHelper.lowercaseFirstLetter(name));
 			return null;
 		} else
 			return super.visitPrimary(ctx);
@@ -130,7 +126,7 @@ public class EntityConverter extends ImportsCollector<Object> {
 
 			TerminalNode id = ctx.IDENTIFIER();
 			if (changedNames.contains(id.getText())) {
-				rewriter.replace(id.getSymbol().getTokenIndex(), lowercaseFirstLetter(id.getText()));
+				rewriter.replace(id.getSymbol().getTokenIndex(), StringHelper.lowercaseFirstLetter(id.getText()));
 			}
 			return null;
 		}
