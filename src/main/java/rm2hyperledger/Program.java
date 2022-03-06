@@ -76,6 +76,9 @@ public class Program {
 
 		//Why can't we run convertEntities before convertReferenceToPK?
 		convertEntities(targetFolder);
+
+		new EntityManagerGetObjectByPK(targetFolder, entityNames).editCommit();
+
 		convertReferenceToPK(reModelFile, targetFolder);
 
 		new ConvertGlobalFields(targetFolder, reModelFile, pkMap).editCommit();
