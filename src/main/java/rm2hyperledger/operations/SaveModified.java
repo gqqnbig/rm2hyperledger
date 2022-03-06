@@ -135,7 +135,7 @@ public class SaveModified extends GitCommit {
 			var expressionList = ctx.expressionList();
 			if (expressionList != null) {
 				var arg1 = expressionList.expression(1);
-				if (ctx.IDENTIFIER().getText().equals("addObject"))
+				if (ctx.IDENTIFIER().getText().equals("addObject") || ctx.IDENTIFIER().getText().equals("deleteObject"))
 					variableTypesToSave.remove(arg1.getText());
 			}
 			return super.visitMethodCall(ctx);
