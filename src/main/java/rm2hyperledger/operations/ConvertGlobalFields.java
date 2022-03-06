@@ -21,7 +21,7 @@ public class ConvertGlobalFields extends GitCommit {
 	private final List<FieldDefinition> pkMap;
 
 	public ConvertGlobalFields(String targetFolder, String remodelFile, List<FieldDefinition> pkMap) {
-		super("Convert global fields", targetFolder);
+		super("Fields in contract classes must be referenced by PK", targetFolder);
 		this.remodelFile = remodelFile;
 		this.pkMap = pkMap;
 	}
@@ -29,9 +29,6 @@ public class ConvertGlobalFields extends GitCommit {
 	@Override
 	protected ArrayList<Path> editCommitCore() throws IOException {
 		var fileName = FileHelper.getFileNameWithoutExtension(Path.of(remodelFile).getFileName().toString());
-
-		System.out.println(fileName);
-
 		var systemFile = Path.of(targetFolder, "src\\main\\java\\services\\", fileName + "System.java");
 
 		List<GlobalFieldType> globalFields = SystemFieldsCollector.collect(systemFile).entrySet().stream().
@@ -77,11 +74,6 @@ public class ConvertGlobalFields extends GitCommit {
 			this.globalFields = globalFields;
 		}
 
-//		@Override
-//		public Object visitClassBodyDeclaration(JavaParser.ClassBodyDeclarationContext ctx) {
-//			return super.visitClassBodyDeclaration(ctx);
-//		}
-
 		@Override
 		public Object visitFieldDeclaration(JavaParser.FieldDeclarationContext ctx) {
 			String fieldName = ctx.variableDeclarators().variableDeclarator(0).variableDeclaratorId().IDENTIFIER().getText();
@@ -100,7 +92,7 @@ public class ConvertGlobalFields extends GitCommit {
 			var m = p.matcher(methodName);
 
 			if (m.matches() == false)
-				return null;
+				return super.visitMethodDeclaration(ctx);
 
 
 			var fieldDefinition = globalFields.stream().filter(f -> f.fieldName.equals(StringHelper.lowercaseFirstLetter(m.group(2)))).findFirst();
@@ -132,6 +124,7 @@ public class ConvertGlobalFields extends GitCommit {
 					FormatHelper.increaseIndent(lines, 1);
 
 					rewriter.insertAfter(ctx.stop, "\n\n" + String.format(String.join("\n", lines), methodName, pkFieldName, EntityPKHelper.FieldDefinitionConverter.castToReferenceType(fieldDefinition.get().pkType)));
+					return null;
 				} else if (m.group(1).equals("set")) {
 					var parameterName = ctx.formalParameters().formalParameterList().formalParameter(0).variableDeclaratorId().IDENTIFIER().getText();
 
@@ -147,11 +140,26 @@ public class ConvertGlobalFields extends GitCommit {
 					FormatHelper.increaseIndent(lines, 1);
 
 					rewriter.insertAfter(ctx.stop, "\n\n" + String.format(String.join("\n", lines), methodName, pkFieldName));
+					return null;
 				}
 			}
 
-			return null;
+			return super.visitMethodDeclaration(ctx);
 		}
+
+		@Override
+		public Object visitPrimary(JavaParser.PrimaryContext ctx) {
+			if (ctx.IDENTIFIER() != null) {
+				var id = ctx.IDENTIFIER().getText();
+				if (globalFields.stream().anyMatch(f -> f.fieldName.equals(id))) {
+
+					rewriter.replace(ctx.start, ctx.stop, "get" + StringHelper.uppercaseFirstLetter(id) + "()");
+					return null;
+				}
+			}
+			return super.visitPrimary(ctx);
+		}
+
 	}
 
 
