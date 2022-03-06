@@ -33,7 +33,7 @@ public class SaveModified extends GitCommit {
 
 					JavaParser parser = new JavaParser(tokens);
 					TokenStreamRewriter2 rewriter = new TokenStreamRewriter2(tokens);
-					var converter = new SaveModifiedAdder(entityNames, rewriter);
+					var converter = new ModifiedVariablesCollector(entityNames, rewriter);
 
 					converter.visit(parser.compilationUnit());
 					if (rewriter.hasChanges()) {
@@ -71,14 +71,14 @@ public class SaveModified extends GitCommit {
 		return changedFiles;
 	}
 
-	static class SaveModifiedAdder extends JavaParserBaseVisitor<Object> {
+	static class ModifiedVariablesCollector extends JavaParserBaseVisitor<Object> {
 		private final HashSet<String> entityTypes;
 
 		HashMap<String, String> definedVariables;
 		HashMap<String, String> variableTypesToSave;
 		private final TokenStreamRewriter rewriter;
 
-		public SaveModifiedAdder(HashSet<String> entityTypes, TokenStreamRewriter rewriter) {
+		public ModifiedVariablesCollector(HashSet<String> entityTypes, TokenStreamRewriter rewriter) {
 			this.entityTypes = entityTypes;
 			this.rewriter = rewriter;
 		}
@@ -122,7 +122,8 @@ public class SaveModified extends GitCommit {
 		public Object visitExpression(JavaParser.ExpressionContext ctx) {
 			if (ctx.expression().size() > 0 && definedVariables.containsKey(ctx.expression(0).getText()) && ctx.methodCall() != null) {
 				var methodName = ctx.methodCall().IDENTIFIER();
-				if (methodName != null && methodName.getText().startsWith("set"))
+				if (methodName != null &&
+						(methodName.getText().startsWith("set") || methodName.getText().startsWith("add") || methodName.getText().startsWith("delete")))
 					variableTypesToSave.put(ctx.expression(0).getText(), definedVariables.get(ctx.expression(0).getText()));
 			}
 
