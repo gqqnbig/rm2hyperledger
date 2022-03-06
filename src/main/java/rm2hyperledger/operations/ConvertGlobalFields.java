@@ -21,7 +21,7 @@ public class ConvertGlobalFields extends GitCommit {
 	private final List<FieldDefinition> pkMap;
 
 	public ConvertGlobalFields(String targetFolder, String remodelFile, List<FieldDefinition> pkMap) {
-		super("Fields in contract classes must be referenced by PK", targetFolder);
+		super("Global fields in contract classes must be referenced by PK", targetFolder);
 		this.remodelFile = remodelFile;
 		this.pkMap = pkMap;
 	}
@@ -98,23 +98,12 @@ public class ConvertGlobalFields extends GitCommit {
 			var fieldDefinition = globalFields.stream().filter(f -> f.fieldName.equals(StringHelper.lowercaseFirstLetter(m.group(2)))).findFirst();
 			if (fieldDefinition.isPresent()) {
 				if (m.group(1).equals("get")) {
-					// @formatter:off
-					ArrayList<String> lines = new ArrayList<>(Arrays.asList(
-							String.format("	for (var i : EntityManager.getAllInstancesOf(%s.class)) {", returnType),
-							String.format("		if (Objects.equals(i.getPK(), %s()))", methodName + "PK"),
-										  "			return i;",
-										  "	}",
-										  "	return null;",
-										  "}"));
-					// @formatter:on
-					FormatHelper.increaseIndent(lines, 1);
-
-					lines.add(0, "{");
-					rewriter.replace(ctx.methodBody().start, ctx.methodBody().stop, String.join("\n", lines));
+					rewriter.replace(ctx.methodBody().start, ctx.methodBody().stop,
+							"{\n\t\t" + String.format("return EntityManager.get%1$sByPK(%2$s());", returnType, methodName + "PK") + "\n\t}");
 					super.newImports.add("java.util.*");
 
 					String pkFieldName = StringHelper.lowercaseFirstLetter(m.group(2)) + "PK";
-					lines = new ArrayList<>(Arrays.asList(
+					var lines = new ArrayList<>(Arrays.asList(
 							"private Object %1$sPK() {",
 							"\tif (%2$s == null)",
 							"\t\t%2$s = genson.deserialize(EntityManager.stub.getStringState(\"system.%2$s\"), %3$s.class);",
