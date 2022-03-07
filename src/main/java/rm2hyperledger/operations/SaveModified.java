@@ -19,7 +19,9 @@ public class SaveModified extends GitCommit {
 	private final HashSet<String> entityNames;
 
 	public SaveModified(String targetFolder, HashSet<String> entityNames) {
-		super("Add saveModified() to EntityManager and call it in transactions", targetFolder);
+		super("Call savedModified\n\n" +
+						"If a local variable or a field, of entity type, is modified in a contract, the changes must be saved back unless AddObject() or deleteObject() is called on it.",
+				targetFolder);
 		this.entityNames = entityNames;
 	}
 
@@ -32,9 +34,14 @@ public class SaveModified extends GitCommit {
 					CommonTokenStream tokens = new CommonTokenStream(new JavaLexer(CharStreams.fromPath(f)));
 
 					JavaParser parser = new JavaParser(tokens);
-					TokenStreamRewriter2 rewriter = new TokenStreamRewriter2(tokens);
-					var converter = new ModifiedVariablesCollector(entityNames, rewriter);
 
+					var entityFieldsCollector = new EntityFieldsCollector(entityNames);
+					entityFieldsCollector.visit(parser.compilationUnit());
+
+
+					TokenStreamRewriter2 rewriter = new TokenStreamRewriter2(tokens);
+					var converter = new ModifiedVariablesCollector(entityNames, entityFieldsCollector.entityFields, rewriter);
+					parser.reset();
 					converter.visit(parser.compilationUnit());
 					if (rewriter.hasChanges()) {
 						try (PrintWriter out = new PrintWriter(f.toFile())) {
@@ -71,15 +78,40 @@ public class SaveModified extends GitCommit {
 		return changedFiles;
 	}
 
+	static class EntityFieldsCollector extends JavaParserBaseVisitor<Object> {
+		private final HashSet<String> entityTypes;
+
+		/**
+		 * field name, type
+		 */
+		public HashMap<String, String> entityFields = new HashMap<>();
+
+		public EntityFieldsCollector(HashSet<String> entityTypes) {
+			this.entityTypes = entityTypes;
+		}
+
+
+		@Override
+		public Object visitFieldDeclaration(JavaParser.FieldDeclarationContext ctx) {
+			if (entityTypes.contains(ctx.typeType().getText())) {
+
+				entityFields.put(ctx.variableDeclarators().variableDeclarator(0).variableDeclaratorId().IDENTIFIER().getText(), ctx.typeType().getText());
+			}
+			return null;
+		}
+	}
+
 	static class ModifiedVariablesCollector extends JavaParserBaseVisitor<Object> {
 		private final HashSet<String> entityTypes;
 
 		HashMap<String, String> definedVariables;
 		HashMap<String, String> variableTypesToSave;
+		private final HashMap<String, String> classFields;
 		private final TokenStreamRewriter rewriter;
 
-		public ModifiedVariablesCollector(HashSet<String> entityTypes, TokenStreamRewriter rewriter) {
+		public ModifiedVariablesCollector(HashSet<String> entityTypes, HashMap<String, String> classFields, TokenStreamRewriter rewriter) {
 			this.entityTypes = entityTypes;
+			this.classFields = classFields;
 			this.rewriter = rewriter;
 		}
 
@@ -120,11 +152,18 @@ public class SaveModified extends GitCommit {
 
 		@Override
 		public Object visitExpression(JavaParser.ExpressionContext ctx) {
-			if (ctx.expression().size() > 0 && definedVariables.containsKey(ctx.expression(0).getText()) && ctx.methodCall() != null) {
-				var methodName = ctx.methodCall().IDENTIFIER();
-				if (methodName != null &&
-						(methodName.getText().startsWith("set") || methodName.getText().startsWith("add") || methodName.getText().startsWith("delete")))
-					variableTypesToSave.put(ctx.expression(0).getText(), definedVariables.get(ctx.expression(0).getText()));
+			if (ctx.expression().size() > 0) {
+				String text = ctx.expression(0).getText();
+				if ((definedVariables.containsKey(text) || classFields.containsKey(text)) && ctx.methodCall() != null) {
+					var methodName = ctx.methodCall().IDENTIFIER();
+					if (methodName != null &&
+							(methodName.getText().startsWith("set") || methodName.getText().startsWith("add") || methodName.getText().startsWith("delete"))) {
+						if (definedVariables.containsKey(text))
+							variableTypesToSave.put(text, definedVariables.get(text));
+						else
+							variableTypesToSave.put(text, classFields.get(text));
+					}
+				}
 			}
 
 			return super.visitExpression(ctx);

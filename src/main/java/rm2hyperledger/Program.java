@@ -81,8 +81,10 @@ public class Program {
 
 		convertReferenceToPK(reModelFile, targetFolder);
 
-		new ConvertGlobalFields(targetFolder, reModelFile, pkMap).editCommit();
 		new SaveModified(targetFolder, entityNames).editCommit();
+		// ConvertGlobalFields will change field access to getter access, so it's harder for SaveModified to tell what needs to save.
+		// so we call SaveModified before ConvertGlobalFields.
+		new ConvertGlobalFields(targetFolder, reModelFile, pkMap).editCommit();
 
 		fixLineEnding(targetFolder);
 
