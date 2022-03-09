@@ -78,6 +78,9 @@ public class SaveModified extends GitCommit {
 		return changedFiles;
 	}
 
+	/**
+	 * In a class, collect its all fields whose type is an Entity type.
+	 */
 	static class EntityFieldsCollector extends JavaParserBaseVisitor<Object> {
 		private final HashSet<String> entityTypes;
 
