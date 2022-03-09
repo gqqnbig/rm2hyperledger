@@ -14,14 +14,14 @@ import java.util.*;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-public class ConvertGlobalFields extends GitCommit {
+public class ConvertContractFields extends GitCommit {
 
 
 	private final String remodelFile;
 	private final List<FieldDefinition> pkMap;
 
-	public ConvertGlobalFields(String targetFolder, String remodelFile, List<FieldDefinition> pkMap) {
-		super("Global fields in contract classes must be referenced by PK", targetFolder);
+	public ConvertContractFields(String targetFolder, String remodelFile, List<FieldDefinition> pkMap) {
+		super("All fields of entity type in contract classes must be referenced by PK\n\nGlobal/system fields are retrieved from the system key.", targetFolder);
 		this.remodelFile = remodelFile;
 		this.pkMap = pkMap;
 	}
@@ -31,20 +31,27 @@ public class ConvertGlobalFields extends GitCommit {
 		var fileName = FileHelper.getFileNameWithoutExtension(Path.of(remodelFile).getFileName().toString());
 		var systemFile = Path.of(targetFolder, "src\\main\\java\\services\\", fileName + "System.java");
 
-		List<GlobalFieldType> globalFields = SystemFieldsCollector.collect(systemFile).entrySet().stream().
-				map(e -> new GlobalFieldType(e.getKey(), e.getValue(), pkMap.stream().filter(m -> m.ClassName.equals(e.getValue())).map(d -> d.TypeName).findFirst().get())).
-				collect(Collectors.toList());
+		Set<String> globalFields = SystemFieldsCollector.collect(systemFile).keySet();
 
 
 		ArrayList<Path> changedFiles = new ArrayList<>();
+		Set<String> entityNames = pkMap.stream().map(d -> d.ClassName).collect(Collectors.toSet());//.collect(Collectors.toSet());
 		try (DirectoryStream<Path> files = Files.newDirectoryStream(Path.of(targetFolder, "src\\main\\java\\services\\impl"), "*.java")) {
 			for (var f : files) {
 				try {
 					CommonTokenStream tokens = new CommonTokenStream(new JavaLexer(CharStreams.fromPath(f)));
 
 					JavaParser parser = new JavaParser(tokens);
+
+					var entityFieldsCollector = new SaveModified.EntityFieldsCollector(entityNames);
+					entityFieldsCollector.visit(parser.compilationUnit());
+					parser.reset();
+
 					TokenStreamRewriter2 rewriter = new TokenStreamRewriter2(tokens);
-					var converter = new PKAdder(rewriter, globalFields);
+					var fields = entityFieldsCollector.entityFields.entrySet().stream().
+							map(e -> new EntityField(e.getKey(), e.getValue(), pkMap.stream().filter(m -> m.ClassName.equals(e.getValue())).map(d -> d.VariableType).findFirst().get())).
+							collect(Collectors.toList());
+					var converter = new PKAdder(rewriter, globalFields, fields);
 
 					converter.visit(parser.compilationUnit());
 					if (rewriter.hasChanges()) {
@@ -66,18 +73,28 @@ public class ConvertGlobalFields extends GitCommit {
 
 	static class PKAdder extends ImportsCollector<Object> {
 
-		private final List<GlobalFieldType> globalFields;
+		private final Set<String> globalFields;
+		private final List<EntityField> classFields;
 
-		public PKAdder(TokenStreamRewriter rewriter, List<GlobalFieldType> globalFields) {
+		private String className;
+
+		public PKAdder(TokenStreamRewriter rewriter, Set<String> globalFields, List<EntityField> classFields) {
 			super(rewriter);
 
 			this.globalFields = globalFields;
+			this.classFields = classFields;
+		}
+
+		@Override
+		public Object visitClassDeclaration(JavaParser.ClassDeclarationContext ctx) {
+			className = ctx.IDENTIFIER().getText();
+			return super.visit(ctx.classBody());
 		}
 
 		@Override
 		public Object visitFieldDeclaration(JavaParser.FieldDeclarationContext ctx) {
 			String fieldName = ctx.variableDeclarators().variableDeclarator(0).variableDeclaratorId().IDENTIFIER().getText();
-			if (globalFields.stream().anyMatch(f -> f.fieldName.equals(fieldName))) {
+			if (classFields.stream().anyMatch(f -> f.fieldName.equals(fieldName))) {
 				rewriter.replace(ctx.start, ctx.stop, "Object " + fieldName + "PK;");
 			}
 			return null;
@@ -95,40 +112,40 @@ public class ConvertGlobalFields extends GitCommit {
 				return super.visitMethodDeclaration(ctx);
 
 
-			var fieldDefinition = globalFields.stream().filter(f -> f.fieldName.equals(StringHelper.lowercaseFirstLetter(m.group(2)))).findFirst();
+			var fieldDefinition = classFields.stream().filter(f -> f.fieldName.equals(StringHelper.lowercaseFirstLetter(m.group(2)))).findFirst();
 			if (fieldDefinition.isPresent()) {
 				if (m.group(1).equals("get")) {
 					rewriter.replace(ctx.methodBody().start, ctx.methodBody().stop,
 							"{\n\t\t" + String.format("return EntityManager.get%1$sByPK(%2$s());", returnType, methodName + "PK") + "\n\t}");
 					super.newImports.add("java.util.*");
 
-					String pkFieldName = StringHelper.lowercaseFirstLetter(m.group(2)) + "PK";
 					var lines = new ArrayList<>(Arrays.asList(
 							"private Object %1$sPK() {",
 							"\tif (%2$s == null)",
-							"\t\t%2$s = genson.deserialize(EntityManager.stub.getStringState(\"system.%2$s\"), %3$s.class);",
+							"\t\t%2$s = genson.deserialize(EntityManager.stub.getStringState(\"%4$s.%2$s\"), %3$s.class);",
 							"",
 							"\treturn %2$s;",
 							"}"));
 					FormatHelper.increaseIndent(lines, 1);
 
-					rewriter.insertAfter(ctx.stop, "\n\n" + String.format(String.join("\n", lines), methodName, pkFieldName, EntityPKHelper.FieldDefinitionConverter.castToReferenceType(fieldDefinition.get().pkType)));
+					rewriter.insertAfter(ctx.stop, "\n\n" + String.format(String.join("\n", lines), methodName, StringHelper.lowercaseFirstLetter(m.group(2)) + "PK", EntityPKHelper.FieldDefinitionConverter.castToReferenceType(fieldDefinition.get().pkType),
+							globalFields.contains(StringHelper.lowercaseFirstLetter(m.group(2))) ? "system" : className));
 					return null;
 				} else if (m.group(1).equals("set")) {
 					var parameterName = ctx.formalParameters().formalParameterList().formalParameter(0).variableDeclaratorId().IDENTIFIER().getText();
 
 					rewriter.replace(ctx.methodBody().start, ctx.methodBody().stop, "{\n\t\t" + String.format("%sPK(%s.getPK());", methodName, parameterName) + "\n\t}");
 
-					String pkFieldName = StringHelper.lowercaseFirstLetter(m.group(2)) + "PK";
 					ArrayList<String> lines = new ArrayList<>(Arrays.asList(
 							"private void %1$sPK(Object %2$s) {",
 							"\tString json = genson.serialize(%2$s);",
-							"\tEntityManager.stub.putStringState(\"system.%2$s\", json);",
+							"\tEntityManager.stub.putStringState(\"%3$s.%2$s\", json);",
 							"\tthis.%2$s = %2$s;",
 							"}"));
 					FormatHelper.increaseIndent(lines, 1);
 
-					rewriter.insertAfter(ctx.stop, "\n\n" + String.format(String.join("\n", lines), methodName, pkFieldName));
+					rewriter.insertAfter(ctx.stop, "\n\n" + String.format(String.join("\n", lines), methodName, StringHelper.lowercaseFirstLetter(m.group(2)) + "PK",
+							globalFields.contains(StringHelper.lowercaseFirstLetter(m.group(2))) ? "system" : className));
 					return null;
 				}
 			}
@@ -140,7 +157,7 @@ public class ConvertGlobalFields extends GitCommit {
 		public Object visitPrimary(JavaParser.PrimaryContext ctx) {
 			if (ctx.IDENTIFIER() != null) {
 				var id = ctx.IDENTIFIER().getText();
-				if (globalFields.stream().anyMatch(f -> f.fieldName.equals(id))) {
+				if (classFields.stream().anyMatch(f -> f.fieldName.equals(id))) {
 
 					rewriter.replace(ctx.start, ctx.stop, "get" + StringHelper.uppercaseFirstLetter(id) + "()");
 					return null;
@@ -196,12 +213,15 @@ public class ConvertGlobalFields extends GitCommit {
 		}
 	}
 
-	static class GlobalFieldType {
+	/**
+	 * One occurrence of a field whose type is an entity type.
+	 */
+	static class EntityField {
 		String fieldName;
 		String fieldType;
 		String pkType;
 
-		public GlobalFieldType(String fieldName, String fieldType, String pkType) {
+		public EntityField(String fieldName, String fieldType, String pkType) {
 			this.fieldName = fieldName;
 			this.fieldType = fieldType;
 			this.pkType = pkType;

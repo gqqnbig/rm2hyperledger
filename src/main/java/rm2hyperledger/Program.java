@@ -84,7 +84,7 @@ public class Program {
 		new SaveModified(targetFolder, entityNames).editCommit();
 		// ConvertGlobalFields will change field access to getter access, so it's harder for SaveModified to tell what needs to save.
 		// so we call SaveModified before ConvertGlobalFields.
-		new ConvertGlobalFields(targetFolder, reModelFile, pkMap).editCommit();
+		new ConvertContractFields(targetFolder, reModelFile, pkMap).editCommit();
 
 		fixLineEnding(targetFolder);
 

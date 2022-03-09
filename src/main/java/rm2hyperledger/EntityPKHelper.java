@@ -132,7 +132,7 @@ public class EntityPKHelper {
 					String variableName = variableDeclarator.variableDeclaratorId().getText();
 					if (this.pkMap.stream().anyMatch(s -> s.ClassName.equals(typeStr)) && variableName.endsWith("PK") == false) {
 						var d = this.pkMap.stream().filter(s -> s.ClassName.equals(typeStr)).findAny().get();
-						rewriter.replace(fieldDeclaration.typeType().start, fieldDeclaration.typeType().stop, d.TypeName);
+						rewriter.replace(fieldDeclaration.typeType().start, fieldDeclaration.typeType().stop, d.VariableType);
 						rewriter.replace(variableDeclarator.start, variableDeclarator.stop, variableName + "PK");
 
 						rewriter.insertBefore(ctx.start, "@JsonProperty\n\t");
@@ -145,7 +145,7 @@ public class EntityPKHelper {
 						var m = pattern.matcher(typeStr);
 						if (m.matches() && this.pkMap.stream().anyMatch(s -> s.ClassName.equals(m.group(1))) && variableName.endsWith("PKs") == false) {
 							var d = this.pkMap.stream().filter(s -> s.ClassName.equals(m.group(1))).findAny().get();
-							rewriter.replace(fieldDeclaration.typeType().start, fieldDeclaration.typeType().stop, "List<" + castToReferenceType(d.TypeName) + ">");
+							rewriter.replace(fieldDeclaration.typeType().start, fieldDeclaration.typeType().stop, "List<" + castToReferenceType(d.VariableType) + ">");
 							rewriter.replace(variableDeclarator.variableDeclaratorId().start, variableDeclarator.variableDeclaratorId().stop, variableName + "PKs");
 							if (variableDeclarator.variableInitializer() != null)
 								rewriter.replace(variableDeclarator.variableInitializer().start, variableDeclarator.variableInitializer().stop,

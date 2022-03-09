@@ -3,12 +3,12 @@ package rm2hyperledger;
 public class FieldDefinition {
 	public String ClassName;
 	public String VariableName;
-	public String TypeName;
+	public String VariableType;
 
 
-	public FieldDefinition(String className, String variableName, String typeName) {
+	public FieldDefinition(String className, String variableName, String variableType) {
 		ClassName = className;
 		VariableName = variableName;
-		TypeName = typeName;
+		VariableType = variableType;
 	}
 }

@@ -13,6 +13,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 public class SaveModified extends GitCommit {
@@ -82,14 +83,14 @@ public class SaveModified extends GitCommit {
 	 * In a class, collect its all fields whose type is an Entity type.
 	 */
 	static class EntityFieldsCollector extends JavaParserBaseVisitor<Object> {
-		private final HashSet<String> entityTypes;
+		private final Set<String> entityTypes;
 
 		/**
 		 * field name, type
 		 */
 		public HashMap<String, String> entityFields = new HashMap<>();
 
-		public EntityFieldsCollector(HashSet<String> entityTypes) {
+		public EntityFieldsCollector(Set<String> entityTypes) {
 			this.entityTypes = entityTypes;
 		}
 
