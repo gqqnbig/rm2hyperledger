@@ -75,13 +75,16 @@ public class Program {
 		removeRefreshMethod(targetFolder);
 
 		//Why can't we run convertEntities before convertReferenceToPK?
-		convertEntities(targetFolder);
+		ConvertEntities convertEntities = new ConvertEntities(targetFolder);
+		convertEntities.editCommit();
 
-		new EntityManagerGetObjectByPK(targetFolder, entityNames).editCommit();
+		new MarkGensonConverters(targetFolder, convertEntities.getEntityNames()).editCommit();
+
+		new EntityManagerGetObjectByPK(targetFolder, convertEntities.getEntityNames()).editCommit();
 
 		convertReferenceToPK(reModelFile, targetFolder);
 
-		new SaveModified(targetFolder, entityNames).editCommit();
+		new SaveModified(targetFolder, convertEntities.getEntityNames()).editCommit();
 		// ConvertGlobalFields will change field access to getter access, so it's harder for SaveModified to tell what needs to save.
 		// so we call SaveModified before ConvertGlobalFields.
 		new ConvertContractFields(targetFolder, reModelFile, pkMap).editCommit();
@@ -340,39 +343,6 @@ public class Program {
 		});
 	}
 
-
-	static HashSet<String> entityNames = new HashSet<>();
-
-	private static void convertEntities(String targetFolder) throws IOException {
-
-		Path folder = Path.of(targetFolder, "src\\main\\java\\entities");
-		assert Files.exists(folder);
-
-		Files.list(folder).forEach(file -> {
-			try {
-				if (file.toString().endsWith("EntityManager.java"))
-					return;
-
-				CommonTokenStream tokens = new CommonTokenStream(new JavaLexer(CharStreams.fromPath(file)));
-
-
-				JavaParser parser = new JavaParser(tokens);
-				TokenStreamRewriter rewriter = new TokenStreamRewriter(tokens);
-				var converter = new EntityConverter(tokens, rewriter);
-
-				converter.visit(parser.compilationUnit());
-				if (converter.entityName != null) {
-					entityNames.add(converter.entityName);
-					try (PrintWriter out = new PrintWriter(file.toFile())) {
-						out.print(rewriter.getText());
-					}
-				}
-			}
-			catch (IOException exception) {
-				logger.severe(exception.getMessage());
-			}
-		});
-	}
 
 	private static void fixLineEnding(String targetFolder) throws IOException {
 		Path servicesImplFolder = Path.of(targetFolder, "src\\main\\java");

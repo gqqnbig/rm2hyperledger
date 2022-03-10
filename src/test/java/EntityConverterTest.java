@@ -2,9 +2,9 @@ import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.TokenStreamRewriter;
 import org.junit.jupiter.api.Test;
-import rm2hyperledger.EntityConverter;
 import rm2hyperledger.JavaLexer;
 import rm2hyperledger.JavaParser;
+import rm2hyperledger.operations.ConvertEntities;
 
 import java.io.IOException;
 
@@ -16,7 +16,7 @@ public class EntityConverterTest {
 		var parser = new JavaParser(tokens);
 		TokenStreamRewriter rewriter = new TokenStreamRewriter(tokens);
 
-		EntityConverter converter = new EntityConverter(tokens, rewriter);
+		ConvertEntities.EntityConverter converter = new ConvertEntities.EntityConverter(tokens, rewriter);
 
 		converter.visit(parser.compilationUnit());
 
