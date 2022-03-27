@@ -144,18 +144,7 @@ public class Program {
 		});
 
 		//For all entity classes, if they refer to another entity, the reference must be replaced by the PK.
-		Files.list(Path.of(targetFolder, "src\\main\\java\\entities")).forEach(file -> {
-			try {
-				if (file.toString().endsWith("EntityManager.java"))
-					return;
-
-				EntityPKHelper.changeReferenceToPK(file, pkMap);
-			}
-			catch (IOException exception) {
-				logger.severe(exception.getMessage());
-			}
-		});
-
+		new EntityChangeEntityReferenceToPK(targetFolder, pkMap).editCommit();
 	}
 
 	private static void convertContracts(String targetFolder) throws IOException {

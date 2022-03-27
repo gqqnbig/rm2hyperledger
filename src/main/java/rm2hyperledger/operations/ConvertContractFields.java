@@ -128,7 +128,7 @@ public class ConvertContractFields extends GitCommit {
 							"}"));
 					FormatHelper.increaseIndent(lines, 1);
 
-					rewriter.insertAfter(ctx.stop, "\n\n" + String.format(String.join("\n", lines), methodName, StringHelper.lowercaseFirstLetter(m.group(2)) + "PK", EntityPKHelper.FieldDefinitionConverter.castToReferenceType(fieldDefinition.get().pkType),
+					rewriter.insertAfter(ctx.stop, "\n\n" + String.format(String.join("\n", lines), methodName, StringHelper.lowercaseFirstLetter(m.group(2)) + "PK", EntityChangeEntityReferenceToPK.FieldDefinitionConverter.castToReferenceType(fieldDefinition.get().pkType),
 							globalFields.contains(StringHelper.lowercaseFirstLetter(m.group(2))) ? "system" : className));
 					return null;
 				} else if (m.group(1).equals("set")) {
