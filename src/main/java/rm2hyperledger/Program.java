@@ -124,24 +124,8 @@ public class Program {
 			}
 		}).filter(Objects::nonNull).collect(Collectors.toList());
 
+		new AddEntityGetPK(targetFolder, pkMap).editCommit();
 
-		Files.list(Path.of(targetFolder, "src\\main\\java\\entities")).forEach(file -> {
-			try {
-				var fileNameWithoutExtension = getFileNameWithoutExtension(file);
-				if (fileNameWithoutExtension.equals("EntityManager"))
-					return;
-
-				if (pkMap.stream().anyMatch(s -> s.ClassName.equals(fileNameWithoutExtension)))
-					return;
-
-				var e = EntityPKHelper.addGuid(file);
-				if (e != null)
-					pkMap.add(e);
-			}
-			catch (IOException exception) {
-				logger.severe(exception.getMessage());
-			}
-		});
 
 		//For all entity classes, if they refer to another entity, the reference must be replaced by the PK.
 		new EntityChangeEntityReferenceToPK(targetFolder, pkMap).editCommit();
