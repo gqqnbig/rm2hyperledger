@@ -105,23 +105,38 @@ public class Program {
 
 	static List<FieldDefinition> pkMap;
 
+	private static String findPKType(Path folder, String className, String pkName) {
+		String currentClassName = className;
+		try {
+			while (currentClassName != null) {
+				CommonTokenStream tokens = new CommonTokenStream(new JavaLexer(CharStreams.fromPath(Path.of(folder.toString(), currentClassName + ".java"))));
+
+				JavaParser parser = new JavaParser(tokens);
+				var typeName = FieldTypeFinder.findField(parser.compilationUnit(), pkName);
+				if (typeName != null)
+					return typeName;
+
+				parser.reset();
+				currentClassName = SuperClassVisitor.findSuperClass(parser.compilationUnit());
+			}
+			logger.warning(String.format("Field %s is not found in %s and its super classes.", pkName, className + ".java"));
+		}
+		catch (IOException e) {
+			logger.severe(e.getMessage());
+		}
+		return null;
+	}
+
 	private static void convertReferenceToPK(String reModelFile, String targetFolder) throws IOException {
 		var primaryKeyCollector = new PrimaryKeyCollector(reModelFile);
 
 		pkMap = primaryKeyCollector.collect().entrySet().stream().map(s -> {
-			try {
-				CommonTokenStream tokens = new CommonTokenStream(new JavaLexer(CharStreams.fromPath(Path.of(targetFolder, "src\\main\\java\\entities", s.getKey() + ".java"))));
-
-				JavaParser parser = new JavaParser(tokens);
-				String variableName = StringHelper.lowercaseFirstLetter(s.getValue());
-				var typeName = FieldTypeFinder.findField(parser.compilationUnit(), variableName);
-				if (typeName == null)
-					throw new RuntimeException(String.format("Field %s is not found in %s.", variableName, s.getKey() + ".java"));
-				return new FieldDefinition(s.getKey(), variableName, typeName);
-			}
-			catch (IOException exception) {
+			String pkName = StringHelper.lowercaseFirstLetter(s.getValue());
+			String type = findPKType(Path.of(targetFolder, "src\\main\\java\\entities"), s.getKey(), pkName);
+			if (type != null)
+				return new FieldDefinition(s.getKey(), pkName, type);
+			else
 				return null;
-			}
 		}).filter(Objects::nonNull).collect(Collectors.toList());
 
 		new AddEntityGetPK(targetFolder, pkMap).editCommit();
