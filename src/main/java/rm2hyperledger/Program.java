@@ -116,7 +116,7 @@ public class Program {
 				String variableName = StringHelper.lowercaseFirstLetter(s.getValue());
 				var typeName = FieldTypeFinder.findField(parser.compilationUnit(), variableName);
 				if (typeName == null)
-					throw new RuntimeException(String.format("Field %s is not found in file %s.", variableName, s.getKey()));
+					throw new RuntimeException(String.format("Field %s is not found in %s.", variableName, s.getKey() + ".java"));
 				return new FieldDefinition(s.getKey(), variableName, typeName);
 			}
 			catch (IOException exception) {
