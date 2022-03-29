@@ -41,7 +41,7 @@ public class AddEntityGetPK extends GitCommit {
 						"\treturn %s;",
 						"}"};
 				if (pk.isPresent())
-					getPK[1] = String.format(getPK[1], pk.get().VariableName);
+					getPK[1] = String.format(getPK[1], "get" + StringHelper.uppercaseFirstLetter(pk.get().VariableName) + "()");
 				else
 					getPK[1] = String.format(getPK[1], "guid");
 
