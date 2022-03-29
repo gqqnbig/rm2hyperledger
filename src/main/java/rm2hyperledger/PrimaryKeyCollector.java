@@ -21,6 +21,11 @@ public class PrimaryKeyCollector {
 		this.reModelFilePath = reModelFilePath;
 	}
 
+	/**
+	 *
+	 * @return class name and its primary key. But type is unknown.
+	 * @throws IOException
+	 */
 	public HashMap<String, String> collect() throws IOException {
 
 		HashMap<String, String> map = new HashMap<>();
