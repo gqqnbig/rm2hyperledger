@@ -65,6 +65,8 @@ public class Program {
 
 		convertEntityManagerCallSite(targetFolder);
 
+		new EntityManagerRandomMethods(targetFolder).editCommit();
+
 
 		convertContracts(targetFolder);
 
