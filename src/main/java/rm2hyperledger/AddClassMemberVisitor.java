@@ -9,6 +9,13 @@ public class AddClassMemberVisitor extends ImportsCollector<Object> {
 	private final EditLocation editLocation;
 	private final String[] member;
 
+	/**
+	 *
+	 * @param rewriter
+	 * @param editLocation
+	 * @param member the indent will be determined based on the context.
+	 * @param imports
+	 */
 	public AddClassMemberVisitor(TokenStreamRewriter rewriter, EditLocation editLocation, String[] member, String... imports) {
 		super(rewriter);
 		this.editLocation = editLocation;
