@@ -11,11 +11,11 @@ repositories {
     mavenCentral()
 }
 
-configurations {
-    compile {
-        extendsFrom = extendsFrom.findAll { it != configurations.antlr }
-    }
-}
+//configurations {
+//    compile {
+//        extendsFrom = extendsFrom.findAll { it != configurations.antlr }
+//    }
+//}
 
 checkstyle {
     toolVersion '8.21'
@@ -29,7 +29,11 @@ checkstyleMain {
 
 dependencies {
     antlr "org.antlr:antlr4:4.9"
-    implementation "org.antlr:antlr4-runtime:4.9"
+//    implementation "org.antlr:antlr4-runtime:4.9"
+
+//    https://mvnrepository.com/artifact/org.eclipse.xtext/org.eclipse.xtext
+//    implementation 'org.eclipse.xtext:org.eclipse.xtext:2.20.0'
+//    implementation files('D:\\rm2pt\\RM2PT-win32.win32.x86_64-1.2.1\\plugins\\net.mydreamy.requirementmodel_1.2.0.202101201750.jar')
 
     testImplementation 'org.junit.jupiter:junit-jupiter-api:5.4.2'
     testRuntime 'org.junit.jupiter:junit-jupiter-engine:5.4.2'
@@ -39,6 +43,15 @@ generateGrammarSource {
 //    maxHeapSize = "64m"
     arguments += ["-visitor", '-package', 'rm2hyperledger']
     outputDirectory = file("build/generated-src/antlr/main/rm2hyperledger")
+}
+
+jar {
+    manifest {
+        attributes(
+                'Class-Path': configurations.compile.collect { it.getName() }.join(' '),
+                'Main-Class': 'Program'
+        )
+    }
 }
 
 test {
