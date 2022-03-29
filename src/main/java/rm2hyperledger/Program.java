@@ -41,8 +41,8 @@ public class Program {
 		}
 
 
-		String targetFolder = "D:\\rm2pt\\cocome-hyperledger";
-		String reModelFile = "D:\\rm2pt\\RM2PT-win32.win32.x86_64-1.2.1\\workspace\\CoCoMe\\RequirementsModel\\cocome.remodel";
+		String targetFolder = "D:\\rm2pt\\LibraryMS-hyperledger";
+		String reModelFile = "D:\\rm2pt\\RM2PT-win32.win32.x86_64-1.2.1\\workspace\\LibraryMS\\RequirementsModel\\library.remodel";
 
 		if (System.getenv("autohotkey") != null)
 			Runtime.getRuntime().exec(new String[]{System.getenv("autohotkey"), Path.of("./src/autohotkey/closeTortoisegit.ahk").toAbsolutePath().toString(), targetFolder});
