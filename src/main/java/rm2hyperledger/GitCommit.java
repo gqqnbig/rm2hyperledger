@@ -35,7 +35,7 @@ public abstract class GitCommit {
 			Runtime.getRuntime().exec(new String[]{"git", "commit", "-m", commitMessage}, null, new java.io.File(targetFolder)).waitFor();
 		}
 		catch (IOException | InterruptedException exception) {
-			logger.severe(exception.getMessage());
+			logger.severe(exception.toString());
 		}
 	}
 

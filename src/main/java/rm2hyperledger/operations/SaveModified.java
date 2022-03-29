@@ -52,7 +52,7 @@ public class SaveModified extends GitCommit {
 					}
 				}
 				catch (IOException exception) {
-					logger.severe(exception.getMessage());
+					logger.severe(exception.toString());
 				}
 			}
 		}

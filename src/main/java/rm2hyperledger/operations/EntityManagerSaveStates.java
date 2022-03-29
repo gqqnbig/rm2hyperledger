@@ -31,7 +31,7 @@ public class EntityManagerSaveStates extends GitCommit {
 		JavaParser parser = new JavaParser(tokens);
 		TokenStreamRewriter rewriter = new TokenStreamRewriter(tokens);
 
-		EntityManagerSaveStates.ObjectMethodsConverter converter = new EntityManagerSaveStates.ObjectMethodsConverter(rewriter);
+		ObjectMethodsConverter converter = new ObjectMethodsConverter(rewriter);
 		converter.visit(parser.compilationUnit());
 		try (PrintWriter out = new PrintWriter(entityManagerFileName.toFile())) {
 			out.print(rewriter.getText());

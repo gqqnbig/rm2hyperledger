@@ -37,7 +37,7 @@ public class AddGensonToContract extends GitCommit {
 						changedFiles.add(f);
 					}
 					catch (IOException exception) {
-						logger.severe(exception.getMessage());
+						logger.severe(exception.toString());
 					}
 				}
 			}

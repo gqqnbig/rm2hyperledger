@@ -175,7 +175,7 @@ public class Program {
 				}
 			}
 			catch (IOException exception) {
-				logger.severe(exception.getMessage());
+				logger.severe(exception.toString());
 			}
 //			System.out.println(interfaceFile.toString() + ":");
 //			System.out.println(interfaceCode);
@@ -300,7 +300,7 @@ public class Program {
 				}
 			}
 			catch (IOException exception) {
-				logger.severe(exception.getMessage());
+				logger.severe(exception.toString());
 			}
 		});
 	}
@@ -328,7 +328,7 @@ public class Program {
 				}
 			}
 			catch (IOException exception) {
-				logger.severe(exception.getMessage());
+				logger.severe(exception.toString());
 			}
 		});
 	}
@@ -349,7 +349,7 @@ public class Program {
 				Files.writeString(impl, content);
 			}
 			catch (IOException exception) {
-				logger.severe(exception.getMessage());
+				logger.severe(exception.toString());
 			}
 		});
 	}

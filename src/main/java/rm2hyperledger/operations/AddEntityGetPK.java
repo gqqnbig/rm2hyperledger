@@ -76,7 +76,7 @@ public class AddEntityGetPK extends GitCommit {
 				changedFiles.add(file);
 			}
 			catch (IOException exception) {
-				logger.severe(exception.getMessage());
+				logger.severe(exception.toString());
 			}
 		});
 
