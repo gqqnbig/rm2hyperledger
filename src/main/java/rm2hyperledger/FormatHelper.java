@@ -15,7 +15,8 @@ public class FormatHelper {
 	public static void increaseIndent(List<String> lines, int tabNumber) {
 		String indent = "\t".repeat(tabNumber);
 		for (int i = 0; i < lines.size(); i++) {
-			lines.set(i, indent + lines.get(i));
+			if (lines.get(i).length() > 0)
+				lines.set(i, indent + lines.get(i));
 		}
 	}
 }
