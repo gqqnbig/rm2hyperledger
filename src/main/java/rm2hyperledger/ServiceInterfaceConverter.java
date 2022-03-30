@@ -6,18 +6,12 @@ import org.antlr.v4.runtime.TokenStreamRewriter;
 import java.util.ArrayList;
 import java.util.logging.Logger;
 
-public class ServiceInterfaceConverter extends ImportsCollector<Object> {
-	static Logger logger = Logger.getLogger(ServiceInterfaceConverter.class.getSimpleName());
+public class ServiceInterfaceConverter extends JavaParserBaseVisitor<Object> {
+	public static Logger logger = Logger.getLogger(ServiceInterfaceConverter.class.getSimpleName());
 
 
 	private String interfaceName;
 	private final ArrayList<String> contractMethods = new ArrayList<>();
-//	private final TokenStreamRewriter rewriter;
-//	private boolean contextClassNeeded = false;
-
-	public ServiceInterfaceConverter(TokenStreamRewriter rewriter) {
-		super(rewriter);
-	}
 
 	public String getInterfaceName() {
 		return interfaceName;
@@ -47,10 +41,6 @@ public class ServiceInterfaceConverter extends ImportsCollector<Object> {
 			logger.finer("Skip " + methodName);
 		} else {
 			contractMethods.add(methodName);
-			if (ParameterChecker.hasParameter(ctx.formalParameters(), "Context", "ctx") == false) {
-				rewriter.insertAfter(ctx.formalParameters().start, "final Context ctx" + (ctx.formalParameters().children.size() == 2 ? "" : ", "));
-				newImports.add("org.hyperledger.fabric.contract.Context");
-			}
 		}
 		return null;
 	}

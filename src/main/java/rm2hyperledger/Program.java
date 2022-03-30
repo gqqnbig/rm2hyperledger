@@ -68,8 +68,7 @@ public class Program {
 		new EntityManagerRandomMethods(targetFolder).editCommit();
 		new EntityManagerStubGetterSetter(targetFolder).editCommit();
 
-
-		convertContracts(targetFolder);
+		new ContractAddTransactionWrapper(targetFolder).editCommit();
 
 		new TransactionReturnListToArray(targetFolder).editCommit();
 
@@ -149,84 +148,6 @@ public class Program {
 		new EntityChangeEntityReferenceToPK(targetFolder, pkMap).editCommit();
 	}
 
-	private static void convertContracts(String targetFolder) throws IOException {
-
-		Path servicesImplFolder = Path.of(targetFolder, "src\\main\\java\\services\\");
-		assert Files.exists(servicesImplFolder);
-		Files.list(servicesImplFolder).forEach(interfaceFile -> {
-			if (Files.isDirectory(interfaceFile))
-				return;
-
-			ArrayList<String> methodsToRewrite = new ArrayList<>();
-			try {
-				String interfaceCode = null;
-				interfaceCode = rewriteInterface(interfaceFile, methodsToRewrite);
-
-				if (interfaceCode == null)
-					return;
-
-				var implementationFile = Path.of(servicesImplFolder.toString(), "impl", FileHelper.getFileNameWithoutExtension(interfaceFile.getFileName().toString()) + "Impl.java");
-				String implementationCode = rewriteImplementation(implementationFile, methodsToRewrite);
-//				System.out.println(implementationCode);
-				try (PrintWriter out = new PrintWriter(interfaceFile.toString())) {
-					out.print(interfaceCode);
-				}
-				try (PrintWriter out = new PrintWriter(implementationFile.toString())) {
-					out.print(implementationCode);
-				}
-			}
-			catch (IOException exception) {
-				logger.severe(exception.toString());
-			}
-//			System.out.println(interfaceFile.toString() + ":");
-//			System.out.println(interfaceCode);
-//			System.out.println();
-//			System.out.println(implementationFile.toString() + ":");
-//			System.out.println(implementationCode);
-//			break;
-		});
-	}
-
-	private static String rewriteImplementation(Path implementationFile, ArrayList<String> methodsToRewrite) throws IOException {
-		CommonTokenStream tokens = new CommonTokenStream(new JavaLexer(CharStreams.fromPath(implementationFile)));
-		TokenStreamRewriter rewriter = new TokenStreamRewriter(tokens);
-
-		JavaParser parser = new JavaParser(tokens);
-		var contractCollector = new ServiceImplementationConverter(rewriter, methodsToRewrite);
-		contractCollector.visit(parser.compilationUnit());
-
-		return rewriter.getText();
-	}
-
-	/**
-	 * @param interfaceFile
-	 * @param methodsToRewrite
-	 * @return null if the file is not rewritable.
-	 * @throws IOException
-	 */
-	private static String rewriteInterface(Path interfaceFile, ArrayList<String> methodsToRewrite) throws IOException {
-		CommonTokenStream tokens = new CommonTokenStream(new JavaLexer(CharStreams.fromPath(interfaceFile)));
-		TokenStreamRewriter rewriter = new TokenStreamRewriter(tokens);
-
-		JavaParser parser = new JavaParser(tokens);
-		ServiceInterfaceConverter contractCollector = new ServiceInterfaceConverter(rewriter);
-		contractCollector.visit(parser.compilationUnit());
-
-		if (contractCollector.getContractMethods().size() == 0)
-			return null;
-
-		if (interfaceFile.getFileName().toString().equals(contractCollector.getInterfaceName() + ".java") == false)
-			ServiceInterfaceConverter.logger.warning(String.format("Interface %s found in file %s.", contractCollector.getInterfaceName(), interfaceFile.getFileName()));
-
-		if (ServiceInterfaceConverter.logger.isLoggable(Level.FINE)) {
-			String msg = contractCollector.getInterfaceName() + " has contracts: ";
-			msg += String.join(", ", contractCollector.getContractMethods());
-			ServiceInterfaceConverter.logger.fine(msg);
-		}
-
-		methodsToRewrite.addAll(contractCollector.getContractMethods());
-		return rewriter.getText();
-	}
 
 	private static void copySkeleton(String targetFolder) throws URISyntaxException, IOException {
 		URI path = Program.class.getProtectionDomain().getCodeSource().getLocation().toURI();

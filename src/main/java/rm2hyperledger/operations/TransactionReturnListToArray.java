@@ -29,10 +29,7 @@ public class TransactionReturnListToArray extends GitCommit {
 	@Override
 	protected ArrayList<Path> editCommitCore() throws IOException {
 		changedFiles = new ArrayList<>();
-		try (DirectoryStream<Path> stream1 = Files.newDirectoryStream(Path.of(targetFolder, "src\\main\\java\\services\\"), "*.java");
-			 DirectoryStream<Path> stream2 = Files.newDirectoryStream(Path.of(targetFolder, "src\\main\\java\\services\\impl"), "*.java")) {
-			for (var f : stream1)
-				editFile(f);
+		try (DirectoryStream<Path> stream2 = Files.newDirectoryStream(Path.of(targetFolder, "src\\main\\java\\services\\impl"), "*.java")) {
 			for (var f : stream2)
 				editFile(f);
 		}
