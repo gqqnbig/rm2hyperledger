@@ -68,7 +68,8 @@ public class Program {
 		new EntityManagerRandomMethods(targetFolder).editCommit();
 		new EntityManagerStubGetterSetter(targetFolder).editCommit();
 
-		new ContractAddTransactionWrapper(targetFolder).editCommit();
+		var addTransactionWrapper = new ContractAddTransactionWrapper(targetFolder);
+		addTransactionWrapper.editCommit();
 
 		new TransactionReturnListToArray(targetFolder).editCommit();
 
@@ -86,7 +87,7 @@ public class Program {
 
 		convertReferenceToPK(reModelFile, targetFolder);
 
-		new SaveModified(targetFolder, convertEntities.getEntityNames()).editCommit();
+		new SaveModified(targetFolder, addTransactionWrapper.contractTransactions, convertEntities.getEntityNames()).editCommit();
 		// ConvertGlobalFields will change field access to getter access, so it's harder for SaveModified to tell what needs to save.
 		// so we call SaveModified before ConvertGlobalFields.
 		new ConvertContractFields(targetFolder, reModelFile, pkMap).editCommit();

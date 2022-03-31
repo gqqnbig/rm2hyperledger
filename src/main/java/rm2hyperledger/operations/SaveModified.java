@@ -7,56 +7,53 @@ import rm2hyperledger.*;
 
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.nio.file.DirectoryStream;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 public class SaveModified extends GitCommit {
+	private final HashMap<String, List<String>> contractTransactions;
 	private final HashSet<String> entityNames;
 
-	public SaveModified(String targetFolder, HashSet<String> entityNames) {
+	public SaveModified(String targetFolder, HashMap<String, List<String>> contractTransactions, HashSet<String> entityNames) {
 		super("Call savedModified\n\n" +
 						"If a local variable or a field, of entity type, is modified in a contract, the changes must be saved back unless AddObject() or deleteObject() is called on it.",
 				targetFolder);
+		this.contractTransactions = contractTransactions;
 		this.entityNames = entityNames;
 	}
 
 	@Override
 	protected ArrayList<Path> editCommitCore() throws IOException {
 		ArrayList<Path> changedFiles = new ArrayList<>();
-		try (DirectoryStream<Path> files = Files.newDirectoryStream(Path.of(targetFolder, "src\\main\\java\\services\\impl"), "*.java")) {
-			for (var f : files) {
-				try {
-					CommonTokenStream tokens = new CommonTokenStream(new JavaLexer(CharStreams.fromPath(f)));
 
-					JavaParser parser = new JavaParser(tokens);
+		for (var entry : contractTransactions.entrySet()) {
+			var file = Path.of(targetFolder, "src\\main\\java\\services\\impl", entry.getKey() + ".java");
 
-					var entityFieldsCollector = new EntityFieldsCollector(entityNames);
-					entityFieldsCollector.visit(parser.compilationUnit());
+			try {
+				CommonTokenStream tokens = new CommonTokenStream(new JavaLexer(CharStreams.fromPath(file)));
+
+				JavaParser parser = new JavaParser(tokens);
+
+				var entityFieldsCollector = new EntityFieldsCollector(entityNames);
+				entityFieldsCollector.visit(parser.compilationUnit());
 
 
-					TokenStreamRewriter2 rewriter = new TokenStreamRewriter2(tokens);
-					var converter = new ModifiedVariablesCollector(entityNames, entityFieldsCollector.entityFields, rewriter);
-					parser.reset();
-					converter.visit(parser.compilationUnit());
-					if (rewriter.hasChanges()) {
-						try (PrintWriter out = new PrintWriter(f.toFile())) {
-							out.print(rewriter.getText());
-						}
-						changedFiles.add(f);
+				TokenStreamRewriter2 rewriter = new TokenStreamRewriter2(tokens);
+				var converter = new ModifiedVariablesCollector(entry.getValue(), entityNames, entityFieldsCollector.entityFields, rewriter);
+				parser.reset();
+				converter.visit(parser.compilationUnit());
+				if (rewriter.hasChanges()) {
+					try (PrintWriter out = new PrintWriter(file.toFile())) {
+						out.print(rewriter.getText());
 					}
-				}
-				catch (IOException exception) {
-					logger.severe(exception.toString());
+					changedFiles.add(file);
 				}
 			}
+			catch (IOException exception) {
+				logger.severe(exception.toString());
+			}
 		}
-
 
 		Path entityManagerPath = Path.of(targetFolder, "src\\main\\java\\entities\\EntityManager.java");
 		CommonTokenStream tokens = new CommonTokenStream(new JavaLexer(CharStreams.fromPath(entityManagerPath)));
@@ -106,6 +103,7 @@ public class SaveModified extends GitCommit {
 	}
 
 	static class ModifiedVariablesCollector extends JavaParserBaseVisitor<Object> {
+		private final List<String> methods;
 		private final HashSet<String> entityTypes;
 
 		HashMap<String, String> definedVariables;
@@ -113,7 +111,8 @@ public class SaveModified extends GitCommit {
 		private final HashMap<String, String> classFields;
 		private final TokenStreamRewriter rewriter;
 
-		public ModifiedVariablesCollector(HashSet<String> entityTypes, HashMap<String, String> classFields, TokenStreamRewriter rewriter) {
+		public ModifiedVariablesCollector(List<String> methods, HashSet<String> entityTypes, HashMap<String, String> classFields, TokenStreamRewriter rewriter) {
+			this.methods = methods;
 			this.entityTypes = entityTypes;
 			this.classFields = classFields;
 			this.rewriter = rewriter;
@@ -122,12 +121,12 @@ public class SaveModified extends GitCommit {
 
 		@Override
 		public Object visitClassBodyDeclaration(JavaParser.ClassBodyDeclarationContext ctx) {
-			if (ctx.modifier().size() > 0 && ctx.modifier(0).getText().contains("@Transaction") && ctx.modifier(0).getText().contains("Transaction.TYPE.SUBMIT")) {
+			if (ctx.memberDeclaration() == null)
+				return null;
 
-				var methodDeclaration = ctx.memberDeclaration().methodDeclaration();
-				if (methodDeclaration != null)
-					return visitMethodBody(methodDeclaration.methodBody());
-			}
+			var methodDeclaration = ctx.memberDeclaration().methodDeclaration();
+			if (methodDeclaration != null && methods.contains(methodDeclaration.IDENTIFIER().getText()))
+				return visitMethodBody(methodDeclaration.methodBody());
 
 			return null;
 		}

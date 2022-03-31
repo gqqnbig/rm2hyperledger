@@ -11,11 +11,15 @@ import java.io.PrintWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.stream.Collectors;
 
 public class ContractAddTransactionWrapper extends GitCommit {
+	public HashMap<String, List<String>> contractTransactions = new HashMap<>();
+
+
 	public ContractAddTransactionWrapper(String targetFolder) {
 		super("Add transaction wrapper", targetFolder);
 	}
@@ -47,6 +51,9 @@ public class ContractAddTransactionWrapper extends GitCommit {
 				try (PrintWriter out = new PrintWriter(implementationFile.toString())) {
 					out.print(rewriter.getText());
 				}
+
+				contractTransactions.put(FileHelper.getFileNameWithoutExtension(implementationFile.getFileName().toString()), methodsToRewrite);
+
 				changedFiles.add(implementationFile);
 			}
 			catch (IOException exception) {
