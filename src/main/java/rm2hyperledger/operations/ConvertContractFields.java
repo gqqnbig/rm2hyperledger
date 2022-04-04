@@ -75,6 +75,8 @@ public class ConvertContractFields extends GitCommit {
 
 
 	static class PKAdder extends ImportsCollector<Object> {
+		static Pattern listPattern = Pattern.compile("List<([\\w\\d_]+)>");
+
 
 		private final Set<String> globalFields;
 		private final List<EntityField> classFields;
@@ -111,8 +113,10 @@ public class ConvertContractFields extends GitCommit {
 		String checkFieldDeclaration(JavaParser.FieldDeclarationContext ctx) {
 			String fieldName = ctx.variableDeclarators().variableDeclarator(0).variableDeclaratorId().IDENTIFIER().getText();
 			if (classFields.stream().anyMatch(f -> f.fieldName.equals(fieldName))) {
-				//TODO: deal with lists.
-				return String.format("private Object %sPK;", fieldName);
+				if (listPattern.matcher(ctx.typeType().getText()).matches())
+					return String.format("private List<Object> %sPKs;", fieldName);
+				else
+					return String.format("private Object %sPK;", fieldName);
 			}
 			return null;
 		}
@@ -132,52 +136,102 @@ public class ConvertContractFields extends GitCommit {
 			var fieldDefinition = classFields.stream().filter(f -> f.fieldName.equals(StringHelper.lowercaseFirstLetter(m.group(2)))).findFirst();
 			if (fieldDefinition.isPresent()) {
 				if (m.group(1).equals("get")) {
-					rewriter.replace(ctx.methodBody().start, ctx.methodBody().stop,
-							"{\n\t\t" + String.format("return EntityManager.get%1$sByPK(%2$s());", returnType, methodName + "PK") + "\n\t}");
-					super.newImports.add("java.util.*");
+					var m2 = listPattern.matcher(returnType);
 
-					var lines = new ArrayList<>(Arrays.asList(
-							"private Object %1$sPK() {",
-							"\tif (%2$s == null)",
-							"\t\t%2$s = genson.deserialize(EntityManager.stub.getStringState(\"%4$s.%2$s\"), %3$s.class);",
-							"",
-							"\treturn %2$s;",
-							"}"));
-					FormatHelper.increaseIndent(lines, 1);
+					if (m2.matches()) {
+						String entityType = m2.group(1);
 
-					rewriter.insertAfter(ctx.stop, "\n\n" + String.format(String.join("\n", lines), methodName, StringHelper.lowercaseFirstLetter(m.group(2)) + "PK", EntityChangeEntityReferenceToPK.FieldDefinitionConverter.castToReferenceType(fieldDefinition.get().pkType),
-							globalFields.contains(StringHelper.lowercaseFirstLetter(m.group(2))) ? "system" : className));
+						var lines = new ArrayList<>(Arrays.asList(
+								"if (%1$s == null)",
+								"\t%1$s = %3$sPKs().stream().map(EntityManager::get%2$sByPK).collect(Collectors.toList());",
+								"return %1$s;"));
+						FormatHelper.increaseIndent(lines, 2);
+
+						rewriter.replace(ctx.methodBody().start, ctx.methodBody().stop,
+								"{\n" + String.format(String.join("\n", lines), fieldDefinition.get().fieldName, entityType, methodName) + "\n\t}");
+						super.newImports.add("java.util.stream.*");
+
+
+						var getPK = new ArrayList<>(Arrays.asList(
+								"private List<Object> %1$sPKs() {",
+								"\tif (%2$s == null)",
+								"\t\t%2$s = (List) GensonHelper.deserializeList(genson, EntityManager.stub.getStringState(\"%4$s.%2$s\"), %3$s.class);",
+								"\treturn %2$s;",
+								"}"));
+						FormatHelper.increaseIndent(getPK, 1);
+
+						rewriter.insertAfter(ctx.stop, "\n\n" + String.format(String.join("\n", getPK), methodName, StringHelper.lowercaseFirstLetter(m.group(2)) + "PKs", EntityChangeEntityReferenceToPK.FieldDefinitionConverter.castToReferenceType(fieldDefinition.get().pkType),
+								globalFields.contains(StringHelper.lowercaseFirstLetter(m.group(2))) ? "system" : className));
+					} else {
+						rewriter.replace(ctx.methodBody().start, ctx.methodBody().stop,
+								"{\n\t\t" + String.format("return EntityManager.get%1$sByPK(%2$s());", returnType, methodName + "PK") + "\n\t}");
+
+						var lines = new ArrayList<>(Arrays.asList(
+								"private Object %1$sPK() {",
+								"\tif (%2$s == null)",
+								"\t\t%2$s = genson.deserialize(EntityManager.stub.getStringState(\"%4$s.%2$s\"), %3$s.class);",
+								"",
+								"\treturn %2$s;",
+								"}"));
+						FormatHelper.increaseIndent(lines, 1);
+
+						rewriter.insertAfter(ctx.stop, "\n\n" + String.format(String.join("\n", lines), methodName, StringHelper.lowercaseFirstLetter(m.group(2)) + "PK", EntityChangeEntityReferenceToPK.FieldDefinitionConverter.castToReferenceType(fieldDefinition.get().pkType),
+								globalFields.contains(StringHelper.lowercaseFirstLetter(m.group(2))) ? "system" : className));
+					}
 					return null;
 				} else if (m.group(1).equals("set")) {
 					var parameterName = ctx.formalParameters().formalParameterList().formalParameter(0).variableDeclaratorId().IDENTIFIER().getText();
 
-					String[] setterBody = new String[]{
-							"if (%1$s != null)",
-							"\t%2$sPK(%1$s.getPK());",
-							"else",
-							"\t%2$sPK(null);",
-							"this.%3$s = %1$s;"
-					};
-					FormatHelper.increaseIndent(setterBody, 2);
-
-					rewriter.replace(ctx.methodBody().start, ctx.methodBody().stop,
-							"{\n" + String.format(String.join("\n", setterBody), parameterName, methodName, StringHelper.lowercaseFirstLetter(m.group(2))) + "\n\t}");
+					var m2 = listPattern.matcher(ctx.formalParameters().formalParameterList().formalParameter(0).typeType().getText());
+					if (m2.matches()) {
+						String[] setterBody = new String[]{
+								"%2$sPKs(%1$s.stream().map(LoanRequest::getPK).collect(Collectors.toList()));",
+								"this.%3$s = %1$s;"
+						};
+						FormatHelper.increaseIndent(setterBody, 2);
+						rewriter.replace(ctx.methodBody().start, ctx.methodBody().stop,
+								"{\n" + String.format(String.join("\n", setterBody), parameterName, methodName, StringHelper.lowercaseFirstLetter(m.group(2))) + "\n\t}");
 
 
-					ArrayList<String> lines = new ArrayList<>(Arrays.asList(
-							"private void %1$sPK(Object %2$s) {",
-							"\tString json = genson.serialize(%2$s);",
-							"\tEntityManager.stub.putStringState(\"%3$s.%2$s\", json);",
-							"\t//If we set %2$s to null, the getter thinks this fields is not initialized, thus will read the old value from chain.",
-							"\tif (%2$s != null)",
-							"\t\tthis.%2$s = %2$s;",
-							"\telse",
-							"\t\tthis.%2$s = EntityManager.getGuid();",
-							"}"));
-					FormatHelper.increaseIndent(lines, 1);
+						ArrayList<String> lines = new ArrayList<>(Arrays.asList(
+								"private void %1$sPKs(List<Object> %2$s) {",
+								"\tString json = genson.serialize(%2$s);",
+								"\tEntityManager.stub.putStringState(\"%3$s.%2$s\", json);",
+								"\tthis.%2$s = %2$s;",
+								"}"));
+						FormatHelper.increaseIndent(lines, 1);
 
-					rewriter.insertAfter(ctx.stop, "\n\n" + String.format(String.join("\n", lines), methodName, StringHelper.lowercaseFirstLetter(m.group(2)) + "PK",
-							globalFields.contains(StringHelper.lowercaseFirstLetter(m.group(2))) ? "system" : className));
+						rewriter.insertAfter(ctx.stop, "\n\n" + String.format(String.join("\n", lines), methodName, StringHelper.lowercaseFirstLetter(m.group(2)) + "PKs",
+								globalFields.contains(StringHelper.lowercaseFirstLetter(m.group(2))) ? "system" : className));
+					} else {
+						String[] setterBody = new String[]{
+								"if (%1$s != null)",
+								"\t%2$sPK(%1$s.getPK());",
+								"else",
+								"\t%2$sPK(null);",
+								"this.%3$s = %1$s;"
+						};
+						FormatHelper.increaseIndent(setterBody, 2);
+
+						rewriter.replace(ctx.methodBody().start, ctx.methodBody().stop,
+								"{\n" + String.format(String.join("\n", setterBody), parameterName, methodName, StringHelper.lowercaseFirstLetter(m.group(2))) + "\n\t}");
+
+
+						ArrayList<String> lines = new ArrayList<>(Arrays.asList(
+								"private void %1$sPK(Object %2$s) {",
+								"\tString json = genson.serialize(%2$s);",
+								"\tEntityManager.stub.putStringState(\"%3$s.%2$s\", json);",
+								"\t//If we set %2$s to null, the getter thinks this fields is not initialized, thus will read the old value from chain.",
+								"\tif (%2$s != null)",
+								"\t\tthis.%2$s = %2$s;",
+								"\telse",
+								"\t\tthis.%2$s = EntityManager.getGuid();",
+								"}"));
+						FormatHelper.increaseIndent(lines, 1);
+
+						rewriter.insertAfter(ctx.stop, "\n\n" + String.format(String.join("\n", lines), methodName, StringHelper.lowercaseFirstLetter(m.group(2)) + "PK",
+								globalFields.contains(StringHelper.lowercaseFirstLetter(m.group(2))) ? "system" : className));
+					}
 					return null;
 				}
 			}
