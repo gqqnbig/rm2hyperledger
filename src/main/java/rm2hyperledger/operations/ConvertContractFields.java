@@ -92,10 +92,24 @@ public class ConvertContractFields extends GitCommit {
 		}
 
 		@Override
-		public Object visitFieldDeclaration(JavaParser.FieldDeclarationContext ctx) {
+		public Object visitClassBodyDeclaration(JavaParser.ClassBodyDeclarationContext ctx) {
+			if (ctx.memberDeclaration() != null) {
+				if (ctx.memberDeclaration().fieldDeclaration() != null) {
+					String str = checkFieldDeclaration(ctx.memberDeclaration().fieldDeclaration());
+					if (str != null) {
+						rewriter.insertBefore(ctx.start, str + "\n\t");
+					}
+					return null;
+				}
+			}
+			return super.visitClassBodyDeclaration(ctx);
+		}
+
+		String checkFieldDeclaration(JavaParser.FieldDeclarationContext ctx) {
 			String fieldName = ctx.variableDeclarators().variableDeclarator(0).variableDeclaratorId().IDENTIFIER().getText();
 			if (classFields.stream().anyMatch(f -> f.fieldName.equals(fieldName))) {
-				rewriter.replace(ctx.start, ctx.stop, "Object " + fieldName + "PK;");
+				//TODO: deal with lists.
+				return String.format("private Object %sPK;", fieldName);
 			}
 			return null;
 		}
