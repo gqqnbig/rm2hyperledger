@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.file.Path;
 import java.util.*;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 public class SaveModified extends GitCommit {
@@ -80,6 +81,8 @@ public class SaveModified extends GitCommit {
 	 * In a class, collect its all fields whose type is an Entity type.
 	 */
 	static class EntityFieldsCollector extends JavaParserBaseVisitor<Object> {
+		static Pattern pattern = Pattern.compile("List<([\\w\\d_]+)>");
+
 		private final Set<String> entityTypes;
 
 		/**
@@ -95,8 +98,11 @@ public class SaveModified extends GitCommit {
 		@Override
 		public Object visitFieldDeclaration(JavaParser.FieldDeclarationContext ctx) {
 			if (entityTypes.contains(ctx.typeType().getText())) {
-
 				entityFields.put(ctx.variableDeclarators().variableDeclarator(0).variableDeclaratorId().IDENTIFIER().getText(), ctx.typeType().getText());
+			} else {
+				var m = pattern.matcher(ctx.typeType().getText());
+				if (m.matches())
+					entityFields.put(ctx.variableDeclarators().variableDeclarator(0).variableDeclaratorId().IDENTIFIER().getText(), m.group(1));
 			}
 			return null;
 		}
