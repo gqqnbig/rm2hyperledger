@@ -10,9 +10,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
+import java.util.*;
 import java.util.logging.Level;
 import java.util.stream.Collectors;
 
@@ -95,6 +93,7 @@ public class ContractAddTransactionWrapper extends GitCommit {
 
 	static class AddWrapperVisitor extends ImportsCollector<TransactionIntent> {
 		private final List<String> methodsToRewrite;
+		private final Set<String> serializableTypes = Set.of("byte", "short", "int", "long", "float", "double", "boolean", "char", "String");
 
 		public AddWrapperVisitor(TokenStreamRewriter rewriter, List<String> methodsToRewrite) {
 			super(rewriter);
@@ -125,29 +124,49 @@ public class ContractAddTransactionWrapper extends GitCommit {
 
 			String parameters;
 			String arguments;
+			String customGenson = null;
 			if (ctx.formalParameters().formalParameterList() != null) {
-				parameters = ctx.formalParameters().formalParameterList().formalParameter().stream().
-						map(p -> ", " + p.typeType().getText() + " " + p.variableDeclaratorId().getText()).collect(Collectors.joining());
+				var formalParameterContexts = ctx.formalParameters().formalParameterList().formalParameter();
+				if (formalParameterContexts.stream().anyMatch(p -> p.typeType().getText().equals("LocalDate"))) {
+					customGenson = "\tvar genson = new GensonBuilder().withConverters(new LocalDateConverter()).create();";
+					// We do not add "com.owlike.genson.*" because com.owlike.genson.Context conflicts with the org.hyperledger.fabric.contract.Context.
+					newImports.add("com.owlike.genson.GensonBuilder");
+					newImports.add("converters.*");
+				}
 
-				arguments = ctx.formalParameters().formalParameterList().formalParameter().stream().
-						map(p -> p.variableDeclaratorId().IDENTIFIER().getText()).collect(Collectors.joining(", "));
+				parameters = formalParameterContexts.stream().
+						map(p -> {
+							return ", " + (serializableTypes.contains(p.typeType().getText()) ? p.typeType().getText() : "String") +
+									" " + p.variableDeclaratorId().getText();
+						}).collect(Collectors.joining());
+
+				arguments = formalParameterContexts.stream().
+						map(p -> {
+							String type = p.typeType().getText();
+							if (serializableTypes.contains(type))
+								return p.variableDeclaratorId().IDENTIFIER().getText();
+							else if ("LocalDate".equals(type))
+								return String.format("genson.deserialize(%s, %s.class)", "\"\\\"\" + " + p.variableDeclaratorId().IDENTIFIER().getText() + " + \"\\\"\"", type);
+							else
+								return String.format("genson.deserialize(%s, %s.class)", p.variableDeclaratorId().IDENTIFIER().getText(), type);
+						}).collect(Collectors.joining(", "));
 			} else {
 				parameters = "";
 				arguments = "";
 			}
 
-			String[] lines;
+			ArrayList<String> lines;
 			if (ctx.typeTypeOrVoid().getText().equals("void"))
-				lines = new String[]{
+				lines = new ArrayList<>(List.of(
 						"@Transaction(intent = Transaction.TYPE.SUBMIT)",
 						"public %1$s %2$s(final Context ctx%3$s)%4$s {",
 						"\tChaincodeStub stub = ctx.getStub();",
 						"\tEntityManager.setStub(stub);",
 						"",
 						"\t%2$s(%5$s);",
-						"}"};
+						"}"));
 			else
-				lines = new String[]{
+				lines = new ArrayList<>(List.of(
 						"@Transaction(intent = Transaction.TYPE.SUBMIT)",
 						"public %1$s %2$s(final Context ctx%3$s)%4$s {",
 						"\tChaincodeStub stub = ctx.getStub();",
@@ -155,10 +174,11 @@ public class ContractAddTransactionWrapper extends GitCommit {
 						"",
 						"\tvar res = %2$s(%5$s);",
 						"\treturn res;",
-						"}"};
-
-
+						"}"));
+			if (customGenson != null)
+				lines.add(5, customGenson);
 			FormatHelper.increaseIndent(lines, 1);
+
 			String str = String.format(String.join("\n", lines),
 					ctx.typeTypeOrVoid().getText(), identifier, parameters, throwsList == null ? "" : " throws " + throwsList, arguments);
 
