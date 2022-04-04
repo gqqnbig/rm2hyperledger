@@ -134,13 +134,28 @@ public class ConvertContractFields extends GitCommit {
 				} else if (m.group(1).equals("set")) {
 					var parameterName = ctx.formalParameters().formalParameterList().formalParameter(0).variableDeclaratorId().IDENTIFIER().getText();
 
-					rewriter.replace(ctx.methodBody().start, ctx.methodBody().stop, "{\n\t\t" + String.format("%sPK(%s.getPK());", methodName, parameterName) + "\n\t}");
+					String[] setterBody = new String[]{
+							"if (%1$s != null)",
+							"\t%2$sPK(%1$s.getPK());",
+							"else",
+							"\t%2$sPK(null);",
+							"this.%3$s = %1$s;"
+					};
+					FormatHelper.increaseIndent(setterBody, 2);
+
+					rewriter.replace(ctx.methodBody().start, ctx.methodBody().stop,
+							"{\n" + String.format(String.join("\n", setterBody), parameterName, methodName, StringHelper.lowercaseFirstLetter(m.group(2))) + "\n\t}");
+
 
 					ArrayList<String> lines = new ArrayList<>(Arrays.asList(
 							"private void %1$sPK(Object %2$s) {",
 							"\tString json = genson.serialize(%2$s);",
 							"\tEntityManager.stub.putStringState(\"%3$s.%2$s\", json);",
-							"\tthis.%2$s = %2$s;",
+							"\t//If we set %2$s to null, the getter thinks this fields is not initialized, thus will read the old value from chain.",
+							"\tif (%2$s != null)",
+							"\t\tthis.%2$s = %2$s;",
+							"\telse",
+							"\t\tthis.%2$s = EntityManager.getGuid();",
 							"}"));
 					FormatHelper.increaseIndent(lines, 1);
 
