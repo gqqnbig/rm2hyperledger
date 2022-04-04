@@ -38,6 +38,9 @@ public class ConvertContractFields extends GitCommit {
 		Set<String> entityNames = pkMap.stream().map(d -> d.ClassName).collect(Collectors.toSet());//.collect(Collectors.toSet());
 		try (DirectoryStream<Path> files = Files.newDirectoryStream(Path.of(targetFolder, "src\\main\\java\\services\\impl"), "*.java")) {
 			for (var f : files) {
+				if (f.getFileName().toString().equals("ServiceManager.java"))
+					continue;
+
 				try {
 					CommonTokenStream tokens = new CommonTokenStream(new JavaLexer(CharStreams.fromPath(f)));
 
